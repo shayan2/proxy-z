@@ -67,13 +67,7 @@ func setupHandler(www string) http.Handler {
 	})
 
 	mux.HandleFunc("/proxy-get", func(w http.ResponseWriter, r *http.Request) {
-		if Tunnels.Count() == 0 {
-			tunel := new(baseconnection.ProxyTunnel)
-			tunel.SetProtocol()
-			Tunnels = append(Tunnels, tunel)
-		} else {
 
-		}
 	})
 	return mux
 }
