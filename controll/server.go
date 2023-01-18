@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sync"
 
 	"gitee.com/dark.H/ProxyZ/asset"
 	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
@@ -21,7 +22,38 @@ var (
 	CERT    = "Resources/pem/cert.pem"
 	KEYPEM  = "Resources/pem/key.pem"
 	Tunnels = gs.List[*baseconnection.ProxyTunnel]{}
+	GLOCK   = sync.RWMutex{}
 )
+
+func Reply(w io.Writer, msg any, status bool) {
+	if status {
+		fmt.Fprintf(w, string(gs.Dict[any]{
+			"status": "ok",
+			"msg":    msg,
+		}.Json()))
+	} else {
+		fmt.Fprintf(w, string(gs.Dict[any]{
+			"status": "fail",
+			"msg":    msg,
+		}.Json()))
+
+	}
+}
+
+func Recv(r io.Reader, w http.ResponseWriter) (d gs.Dict[any], err error) {
+	buf, err := ioutil.ReadAll(r)
+	if err != io.EOF && err != nil {
+		// w.WriteHeader(400)
+		return nil, err
+	}
+	if len(buf) == 0 {
+		return nil, nil
+	}
+	if d := gs.S(buf).Json(); len(d) > 0 {
+		return d, nil
+	}
+	return nil, nil
+}
 
 func setupHandler(www string) http.Handler {
 	mux := http.NewServeMux()
@@ -38,36 +70,49 @@ func setupHandler(www string) http.Handler {
 					"size":  size,
 				})
 			})
-			fmt.Fprintf(w, string(gs.Dict[any]{
-				"status": "ok",
-				"msg":    fs,
-			}.Json()))
+			Reply(w, fs, true)
 
 		})
 		mux.Handle("/z-files-d/", http.StripPrefix("/z-files-d/", http.FileServer(http.Dir(www))))
 		mux.HandleFunc("/z-files-u", uploadFileFunc(www))
 	}
 	mux.HandleFunc("/z-info", func(w http.ResponseWriter, r *http.Request) {
-		buf, err := ioutil.ReadAll(r.Body)
-		if err != io.EOF && err != nil {
+		d, err := Recv(r.Body, w)
+		if err != nil {
 			w.WriteHeader(400)
-			fmt.Fprintln(w, err.Error())
-			return
+			Reply(w, err, false)
 		}
-		if len(buf) == 0 {
-			fmt.Fprintf(w, string(gs.Dict[any]{
-				"status": "ok",
-				"msg":    "alive",
-			}.Json()))
-			return
-		}
-		if d := gs.S(buf).Json(); len(d) > 0 {
-
+		if d == nil {
+			Reply(w, "alive", true)
 		}
 	})
 
 	mux.HandleFunc("/proxy-get", func(w http.ResponseWriter, r *http.Request) {
+		tu := GetProxy()
+		if !tu.On {
+			tu.Start()
+		}
+		str := tu.GetConfig().Json()
+		Reply(w, str, true)
+	})
 
+	mux.HandleFunc("/proxy-new", func(w http.ResponseWriter, r *http.Request) {
+		tu := NewProxy("tls")
+
+		str := tu.GetConfig().Json()
+		Reply(w, str, true)
+	})
+
+	mux.HandleFunc("/proxy-del", func(w http.ResponseWriter, r *http.Request) {
+		d, err := Recv(r.Body, w)
+		if err != nil {
+			w.WriteHeader(400)
+			Reply(w, err, false)
+		}
+		configName := d["msg"].(string)
+
+		str := DelProxy(configName)
+		Reply(w, str, true)
 	})
 	return mux
 }

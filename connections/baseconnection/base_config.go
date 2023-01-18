@@ -16,6 +16,7 @@ import (
 )
 
 type ProtocolConfig struct {
+	ID           string      `json:"id"`
 	Server       interface{} `json:"server"`
 	ServerPort   int         `json:"server_port"`
 	LocalPort    int         `json:"local_port"`
@@ -79,6 +80,11 @@ func (config *ProtocolConfig) GeneratePassword(plugin ...string) (en kcp.BlockCr
 	return
 }
 
+func (config *ProtocolConfig) Json() string {
+	buf, _ := json.Marshal(config)
+	return string(buf)
+}
+
 // GetServerArray get server
 func (config *ProtocolConfig) GetServerArray() []string {
 	// Specifying multiple servers in the "server" options is deprecated.
@@ -123,5 +129,30 @@ func ParseConfig(path string) (config *ProtocolConfig, err error) {
 		return nil, err
 	}
 	readTimeout = time.Duration(config.Timeout) * time.Second
+	return
+}
+
+func RandomConfig() *ProtocolConfig {
+	c := new(ProtocolConfig)
+	port := GiveAPort()
+	c.ServerPort = port
+	c.ServerPassword = string(gs.Str("").RandStr(16))
+	c.Password = string(gs.Str("").RandStr(16))
+	c.SALT = string(gs.Str("").RandStr(32))
+	c.Method = "aes-256"
+	c.EBUFLEN = 4096
+	c.ID = string(gs.Str("").RandStr(32))
+	return c
+}
+
+func JsonConfig(jsonStr string) (config *ProtocolConfig, err error) {
+	config = new(ProtocolConfig)
+	err = json.Unmarshal([]byte(jsonStr), config)
+	if err != nil {
+		return
+	}
+	if config.ID == "" {
+		config.ID = string(gs.Str("").RandStr(32))
+	}
 	return
 }

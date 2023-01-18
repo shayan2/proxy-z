@@ -2,6 +2,7 @@ package baseconnection
 
 import (
 	"io"
+	"math/rand"
 	"net"
 	"runtime"
 	"strings"
@@ -69,4 +70,16 @@ func OpenPortUFW(port int) {
 	if runtime.GOOS == "linux" {
 		gs.Str("ufw allow %d").F(port).Exec()
 	}
+}
+
+func GiveAPort() (port int) {
+	for {
+		port = 40000 + rand.Int()%10000
+		ln, err := net.Listen("tcp", ":"+gs.S(port).Str())
+		if err == nil {
+			ln.Close()
+			return port
+		}
+	}
+
 }

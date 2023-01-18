@@ -2,9 +2,11 @@ package prokcp
 
 import (
 	"crypto/sha1"
+	"errors"
 	"net"
 
 	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
+	"gitee.com/dark.H/gs"
 	"github.com/xtaci/kcp-go"
 	"github.com/xtaci/smux"
 	"golang.org/x/crypto/pbkdf2"
@@ -52,24 +54,55 @@ func newChannel(stream net.Conn, host string) Channel {
 
 // KcpServer used for server
 type KcpServer struct {
-	Server string
-	config baseconnection.ProtocolConfig
+	config *baseconnection.ProtocolConfig
 	// RedirectMode  bool
-	TunnelChan     chan Channel
-	TcpListenPorts map[string]int
-	AcceptConn     int
+	// TunnelChan     chan Channel
+	// TcpListenPorts map[string]int
+	AcceptConn int
 	// RedirectBook  *utils.Config
 }
 
 func (ksever *KcpServer) Accept() (con net.Conn, err error) {
+	listener := ksever.GetListener()
+	if listener == nil {
+		return nil, errors.New("get listener err! in kcp")
+	}
+	con, err = listener.Accept()
+	if err != nil {
+		return
+	}
+	ksever.AcceptConn += 1
+	return
+}
+
+func (kserver *KcpServer) DelCon(con net.Conn) {
+	con.Close()
+	kserver.AcceptConn -= 1
+}
+
+func (ksever *KcpServer) GetListener() net.Listener {
 	_key := ksever.config.Password
 	_salt := ksever.config.SALT
+
 	key := pbkdf2.Key([]byte(_key), []byte(_salt), 4096, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
 	var listener net.Listener
-	listener, err = kcp.ListenWithOptions(ksever.Server, block, 10, 3)
+	serverAddr := gs.Str("%s:%d").F(ksever.config.Server, ksever.config.ServerPort)
+	listener, err := kcp.ListenWithOptions(serverAddr.Str(), block, 10, 3)
+
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	return listener.Accept()
+	return listener
+}
+
+func (kserver *KcpServer) GetConfig() *baseconnection.ProtocolConfig {
+	return kserver.config
+}
+
+func NewKcpServer(config *baseconnection.ProtocolConfig) *KcpServer {
+	k := new(KcpServer)
+	k.config = config
+
+	return k
 }

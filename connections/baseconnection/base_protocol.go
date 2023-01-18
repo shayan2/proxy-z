@@ -1,6 +1,7 @@
 package baseconnection
 
 import (
+	"errors"
 	"net"
 	"sync"
 	"syscall"
@@ -11,7 +12,8 @@ import (
 
 type Protocol interface {
 	GetListener() net.Listener
-	GetConfig() ProtocolConfig
+	GetConfig() *ProtocolConfig
+	DelCon(con net.Conn)
 }
 
 type ProxyTunnel struct {
@@ -19,12 +21,62 @@ type ProxyTunnel struct {
 	alive        int
 	lock         sync.RWMutex
 	protocl      Protocol
+	UseSmux      bool
+	On           bool
 	ControllFunc func(rawHost string, con net.Conn) (err error)
+}
+
+func NewProxyTunnel(procol Protocol) *ProxyTunnel {
+	p := new(ProxyTunnel)
+	p.protocl = procol
+	p.UseSmux = true
+
+	return p
+}
+func (pt *ProxyTunnel) Start() (err error) {
+	pt.On = true
+	go pt.Server()
+	return
+}
+func (pt *ProxyTunnel) Server() (err error) {
+	defer func() {
+		pt.On = false
+	}()
+	gs.Str(pt.GetConfig().Json()).Println("Start Tunnel")
+	if pt.protocl == nil {
+		return errors.New("no protocol set in ProxyTunnel")
+	}
+	listener := pt.protocl.GetListener()
+	if listener == nil {
+		return errors.New("protocol.listenre is null !!!")
+	}
+	if pt.UseSmux {
+		smux := NewSmuxServer(listener, func(con net.Conn) (err error) {
+			pt.HandleConnAsync(con)
+			return
+		})
+		return smux.Server()
+	} else {
+		for {
+			con, err := listener.Accept()
+			if err != nil {
+				return err
+			}
+			pt.HandleConnAsync(con)
+		}
+	}
 }
 
 func (pt *ProxyTunnel) SetProtocol(procol Protocol) {
 	pt.protocl = procol
 
+}
+
+func (pt *ProxyTunnel) GetConfig() *ProtocolConfig {
+	if pt.protocl == nil {
+		return nil
+	}
+	return pt.protocl.GetConfig()
 }
 
 func (pt *ProxyTunnel) SetControllFunc(l func(rawHost string, con net.Conn) (err error)) {

@@ -1,4 +1,4 @@
-package connections
+package baseconnection
 
 import (
 	"fmt"
@@ -79,7 +79,6 @@ func (s *SmuxConfig) NewConnnect() (con net.Conn, err error) {
 	}
 
 	return stream, err
-
 }
 
 func (kconfig *SmuxConfig) UpdateMode() {
