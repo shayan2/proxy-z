@@ -2,6 +2,8 @@ package baseconnection
 
 import (
 	"crypto/sha1"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -83,6 +85,30 @@ func (config *ProtocolConfig) GeneratePassword(plugin ...string) (en kcp.BlockCr
 func (config *ProtocolConfig) Json() string {
 	buf, _ := json.Marshal(config)
 	return string(buf)
+}
+
+func (config *ProtocolConfig) GetTlsConfig() (conf *tls.Config, ok bool) {
+	// SHARED_TLS_KEY = (gs.S(cerPEM) + "|" + gs.S(keyPEM)).Str()
+	if config.Method != "tls" {
+		return nil, false
+	}
+	fs := gs.Str(config.Password).Split("|", 2)
+	cerPEM, keyPEM := fs[0].Trim(), fs[1].Trim()
+	// Load the certificate and private key
+	cert, err := tls.X509KeyPair(cerPEM.Bytes(), keyPEM.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	certpool := x509.NewCertPool()
+	certpool.AppendCertsFromPEM(cerPEM.Bytes())
+	ok = true
+	conf = &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            certpool,
+		ClientCAs:          certpool,
+		InsecureSkipVerify: true,
+	}
+	return
 }
 
 // GetServerArray get server
