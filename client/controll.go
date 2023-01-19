@@ -90,6 +90,9 @@ func (c *ClientControl) GetAviableProxy() (conf *baseconnection.ProtocolConfig) 
 			gs.Str("get aviable proxy client err :" + err.Error()).Println("Err")
 			return nil
 		}
+		if conf.Server == "0.0.0.0" {
+			conf.Server = gs.Str(addr).Split(":")[0].Trim()
+		}
 		c.nowconf = conf
 	}
 
@@ -182,6 +185,7 @@ func (c *ClientControl) Socks5Listen() {
 
 func (c *ClientControl) RebuildSmux() (err error) {
 	proxyConfig := c.GetAviableProxy()
+
 	var singleTunnelConn net.Conn
 	switch proxyConfig.Method {
 	case "tls":

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"gitee.com/dark.H/gs"
 	"github.com/xtaci/smux"
 )
 
@@ -119,8 +120,12 @@ func (m *SmuxConfig) Server() (err error) {
 		conn, err := m.Listener.Accept()
 		if err != nil {
 			time.Sleep(10 * time.Second)
+			gs.Str(err.Error()).Println("smux raw conn accpet err")
 			continue
+		} else {
+			gs.Str("comming").Println("smux raw conn accpet")
 		}
+
 		go m.AccpetStream(conn)
 	}
 
