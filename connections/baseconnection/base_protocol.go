@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"time"
 
+	"gitee.com/dark.H/ProxyZ/connections/prosmux"
+	"gitee.com/dark.H/ProxyZ/connections/prosocks5"
 	"gitee.com/dark.H/gs"
 )
 
@@ -35,6 +37,7 @@ func NewProxyTunnel(procol Protocol) *ProxyTunnel {
 }
 func (pt *ProxyTunnel) Start() (err error) {
 	pt.On = true
+
 	go pt.Server()
 	return
 }
@@ -42,7 +45,7 @@ func (pt *ProxyTunnel) Server() (err error) {
 	defer func() {
 		pt.On = false
 	}()
-	gs.Str(pt.GetConfig().Json()).Println("Start Tunnel")
+
 	if pt.protocl == nil {
 		return errors.New("no protocol set in ProxyTunnel")
 	}
@@ -50,13 +53,16 @@ func (pt *ProxyTunnel) Server() (err error) {
 	if listener == nil {
 		return errors.New("protocol.listenre is null !!!")
 	}
+
 	if pt.UseSmux {
-		smux := NewSmuxServer(listener, func(con net.Conn) (err error) {
+		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().Method + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Smux Tunnel")
+		smux := prosmux.NewSmuxServer(listener, func(con net.Conn) (err error) {
 			pt.HandleConnAsync(con)
 			return
 		})
 		return smux.Server()
 	} else {
+		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().Method + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Tunnel")
 		for {
 			con, err := listener.Accept()
 			if err != nil {
@@ -85,7 +91,7 @@ func (pt *ProxyTunnel) SetControllFunc(l func(rawHost string, con net.Conn) (err
 
 func (pt *ProxyTunnel) HandleConnAsync(con net.Conn) {
 	con.SetReadDeadline(time.Now().Add(time.Minute))
-	host, _, _, err := GetServerRequest(con)
+	host, _, _, err := prosocks5.GetServerRequest(con)
 	if err != nil {
 		ErrToFile("Server HandleConnection", err)
 		con.Close()
@@ -126,7 +132,7 @@ func (pt *ProxyTunnel) TcpNormal(host string, con net.Conn) (err error) {
 		return err
 	}
 	// con.SetWriteDeadline(time.Now().Add(2 * time.Minute))
-	_, err = con.Write(Socks5Confirm)
+	_, err = con.Write(prosocks5.Socks5Confirm)
 	if err != nil {
 		ErrToFile("back con is break", err)
 		remoteConn.Close()

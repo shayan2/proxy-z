@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-func ConnectKcp(addr string, config baseconnection.ProtocolConfig) (session net.Conn, err error) {
+func ConnectKcp(addr string, config *baseconnection.ProtocolConfig) (session net.Conn, err error) {
 	_key := config.Password
 	_salt := config.SALT
 	key := pbkdf2.Key([]byte(_key), []byte(_salt), 1024, 32, sha1.New)
@@ -20,7 +20,7 @@ func ConnectKcp(addr string, config baseconnection.ProtocolConfig) (session net.
 	return
 }
 
-func ConnectKcpFirstBuf(dst string, config baseconnection.ProtocolConfig, firstbuf ...[]byte) (con net.Conn, reply []byte, err error) {
+func ConnectKcpFirstBuf(dst string, config *baseconnection.ProtocolConfig, firstbuf ...[]byte) (con net.Conn, reply []byte, err error) {
 	con, err = ConnectKcp(dst, config)
 
 	if firstbuf != nil {

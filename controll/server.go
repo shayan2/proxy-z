@@ -55,69 +55,7 @@ func Recv(r io.Reader, w http.ResponseWriter) (d gs.Dict[any], err error) {
 	return nil, nil
 }
 
-func setupHandler(www string) http.Handler {
-	mux := http.NewServeMux()
-	if len(www) > 0 {
-		mux.HandleFunc("/z-files", func(w http.ResponseWriter, r *http.Request) {
-			fs := gs.List[any]{}
-			gs.Str(www).Ls().Every(func(no int, i gs.Str) {
-				isDir := i.IsDir()
-				name := i.Basename()
-				size := i.FileSize()
-				fs = fs.Add(gs.Dict[any]{
-					"name":  name,
-					"isDir": isDir,
-					"size":  size,
-				})
-			})
-			Reply(w, fs, true)
-
-		})
-		mux.Handle("/z-files-d/", http.StripPrefix("/z-files-d/", http.FileServer(http.Dir(www))))
-		mux.HandleFunc("/z-files-u", uploadFileFunc(www))
-	}
-	mux.HandleFunc("/z-info", func(w http.ResponseWriter, r *http.Request) {
-		d, err := Recv(r.Body, w)
-		if err != nil {
-			w.WriteHeader(400)
-			Reply(w, err, false)
-		}
-		if d == nil {
-			Reply(w, "alive", true)
-		}
-	})
-
-	mux.HandleFunc("/proxy-get", func(w http.ResponseWriter, r *http.Request) {
-		tu := GetProxy()
-		if !tu.On {
-			tu.Start()
-		}
-		str := tu.GetConfig().Json()
-		Reply(w, str, true)
-	})
-
-	mux.HandleFunc("/proxy-new", func(w http.ResponseWriter, r *http.Request) {
-		tu := NewProxy("tls")
-
-		str := tu.GetConfig().Json()
-		Reply(w, str, true)
-	})
-
-	mux.HandleFunc("/proxy-del", func(w http.ResponseWriter, r *http.Request) {
-		d, err := Recv(r.Body, w)
-		if err != nil {
-			w.WriteHeader(400)
-			Reply(w, err, false)
-		}
-		configName := d["msg"].(string)
-
-		str := DelProxy(configName)
-		Reply(w, str, true)
-	})
-	return mux
-}
-
-func HTTP3Server(serverAddr, wwwDir string) {
+func HTTP3Server(serverAddr, wwwDir string, useQuic bool) {
 
 	quicConf := &quic.Config{}
 	handler := setupHandler(wwwDir)
@@ -147,16 +85,30 @@ func HTTP3Server(serverAddr, wwwDir string) {
 		InsecureSkipVerify: false,
 	}
 
-	server := http3.Server{
-		Handler:    handler,
-		Addr:       serverAddr,
-		QuicConfig: quicConf,
-		TLSConfig:  tlsconfig,
-	}
-	// Bind to a port and listen for incoming connections
+	if useQuic {
+		server := http3.Server{
+			Handler:    handler,
+			Addr:       serverAddr,
+			QuicConfig: quicConf,
+			TLSConfig:  tlsconfig,
+		}
+		// Bind to a port and listen for incoming connections
+		gs.Str(server.Addr).Println("QUIC HTTP")
+		err = server.ListenAndServe()
+		if err != nil {
+			log.Println("listen server tls err:", err)
+		}
 
-	err = server.ListenAndServe()
-	if err != nil {
-		log.Println("listen server tls err:", err)
+	} else {
+		server := &http.Server{
+			Handler:   handler,
+			Addr:      serverAddr,
+			TLSConfig: tlsconfig,
+		}
+		gs.Str(server.Addr).Println("TLS HTTP")
+		err = server.ListenAndServe()
+		if err != nil {
+			log.Println("listen server tls err:", err)
+		}
 	}
 }

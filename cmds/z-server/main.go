@@ -8,18 +8,21 @@ import (
 )
 
 var (
-	server = ""
-	www    = ""
+	tlsserver  = ""
+	quicserver = ""
+	www        = ""
 )
 
 func main() {
-	flag.StringVar(&server, "server", "0.0.0.0:55443", "http3 server addr")
+	flag.StringVar(&quicserver, "quic-api", "0.0.0.0:55444", "http3 server addr")
+	flag.StringVar(&tlsserver, "tls-api", "0.0.0.0:55443", "http3 server addr")
 	flag.StringVar(&www, "www", "/tmp/www", "http3 server www dir path")
 	flag.Parse()
 	if !gs.Str(www).IsExists() {
 		gs.Str(www).Mkdir()
 	}
-	gs.Str(server).Println("Server Run")
-	controll.HTTP3Server(server, www)
+	// gs.Str(quicserver).Println("Server Run")
+	go controll.HTTP3Server(quicserver, www, true)
+	controll.HTTP3Server(tlsserver, www, false)
 
 }

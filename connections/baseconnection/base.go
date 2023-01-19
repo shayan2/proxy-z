@@ -78,6 +78,7 @@ func GiveAPort() (port int) {
 		ln, err := net.Listen("tcp", ":"+gs.S(port).Str())
 		if err == nil {
 			ln.Close()
+			OpenPortUFW(port)
 			return port
 		}
 	}

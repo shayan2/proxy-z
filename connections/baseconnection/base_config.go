@@ -17,6 +17,10 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
+var (
+	readTimeout time.Duration
+)
+
 type ProtocolConfig struct {
 	ID           string      `json:"id"`
 	Server       interface{} `json:"server"`
@@ -85,6 +89,10 @@ func (config *ProtocolConfig) GeneratePassword(plugin ...string) (en kcp.BlockCr
 func (config *ProtocolConfig) Json() string {
 	buf, _ := json.Marshal(config)
 	return string(buf)
+}
+
+func (config *ProtocolConfig) RemoteAddr() string {
+	return gs.Str("%s:%d").F(config.Server, config.ServerPort).Str()
 }
 
 func (config *ProtocolConfig) GetTlsConfig() (conf *tls.Config, ok bool) {
@@ -162,6 +170,7 @@ func RandomConfig() *ProtocolConfig {
 	c := new(ProtocolConfig)
 	port := GiveAPort()
 	c.ServerPort = port
+	c.Server = "0.0.0.0"
 	c.ServerPassword = string(gs.Str("").RandStr(16))
 	c.Password = string(gs.Str("").RandStr(16))
 	c.SALT = string(gs.Str("").RandStr(32))

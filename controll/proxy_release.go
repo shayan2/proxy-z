@@ -3,6 +3,7 @@ package controll
 import (
 	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
 	"gitee.com/dark.H/ProxyZ/connections/prokcp"
+	"gitee.com/dark.H/ProxyZ/connections/protls"
 	"gitee.com/dark.H/gs"
 )
 
@@ -41,12 +42,17 @@ func NewProxy(tp string) *baseconnection.ProxyTunnel {
 	switch tp {
 	case "tls":
 		config := baseconnection.RandomConfig()
-		protocl := prokcp.NewTlsServer(config)
+		protocl := protls.NewTlsServer(config)
 		tunel := baseconnection.NewProxyTunnel(protocl)
 		return tunel
 	case "kcp":
 		config := baseconnection.RandomConfig()
 		protocl := prokcp.NewKcpServer(config)
+		tunel := baseconnection.NewProxyTunnel(protocl)
+		return tunel
+	default:
+		config := baseconnection.RandomConfig()
+		protocl := protls.NewTlsServer(config)
 		tunel := baseconnection.NewProxyTunnel(protocl)
 		return tunel
 	}

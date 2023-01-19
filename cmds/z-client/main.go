@@ -8,13 +8,15 @@ import (
 )
 
 var (
-	server   = ""
-	filePath = ""
-	filename = ""
+	quicserver = ""
+	tlsserver  = ""
+	filePath   = ""
+	filename   = ""
 )
 
 func main() {
-	flag.StringVar(&server, "u", "https://localhost:55443", "http3 server addr")
+	flag.StringVar(&quicserver, "uq", "https://localhost:55444", "http3 server addr")
+	flag.StringVar(&tlsserver, "u", "https://localhost:55443", "https server addr")
 	flag.StringVar(&filePath, "f", "", "http3 client upload   file path")
 	flag.StringVar(&filename, "d", "", "http3 client download file path")
 
@@ -22,20 +24,20 @@ func main() {
 	args := gs.List[string](flag.Args()).Join(" ")
 	if args != "" {
 		data := args.ParseKV()
-		controll.HTTP3Post(server, toany(data)).Print()
+		controll.HTTP3Post(quicserver, toany(data)).Print()
 		return
 	}
 	if filename != "" {
 		gs.Str("Downloads").Mkdir()
-		controll.HTTP3DownFile(gs.Str(server), gs.Str(filename), gs.Str("Downloads").PathJoin(filename)).Print()
+		controll.HTTP3DownFile(gs.Str(quicserver), gs.Str(filename), gs.Str("Downloads").PathJoin(filename)).Print()
 		return
 	}
 	if filePath != "" {
-		controll.HTTP3UploadFile(gs.Str(server), gs.Str(filePath)).Print()
+		controll.HTTP3UploadFile(gs.Str(quicserver), gs.Str(filePath)).Print()
 		return
 	}
 	// gs.Str("->" + server).Println()
-	controll.HTTP3Get(server).Print()
+	controll.HTTP3Get(quicserver).Print()
 
 }
 
