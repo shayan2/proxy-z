@@ -88,6 +88,7 @@ func (ksever *KcpServer) GetListener() net.Listener {
 	block, _ := kcp.NewAESBlockCrypt(key)
 	var listener net.Listener
 	serverAddr := gs.Str("%s:%d").F(ksever.config.Server, ksever.config.ServerPort)
+	gs.Str(serverAddr).Println("listen kcp")
 	listener, err := kcp.ListenWithOptions(serverAddr.Str(), block, 10, 3)
 
 	if err != nil {

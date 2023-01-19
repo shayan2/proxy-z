@@ -118,15 +118,15 @@ func (c *ClientControl) Socks5Listen() {
 				continue
 			}
 
-			go func(scon net.Conn) {
-				defer scon.Close()
-				err := prosocks5.Socks5HandShake(&scon)
+			go func(socks5con net.Conn) {
+				defer socks5con.Close()
+				err := prosocks5.Socks5HandShake(&socks5con)
 				if err != nil {
 					gs.Str(err.Error()).Println("socks5 handshake")
 					return
 				}
 
-				raw, host, _, err := prosocks5.GetLocalRequest(&scon)
+				raw, host, _, err := prosocks5.GetLocalRequest(&socks5con)
 				if err != nil {
 					gs.Str(err.Error()).Println("socks5 get host")
 					return
@@ -145,12 +145,17 @@ func (c *ClientControl) Socks5Listen() {
 					c.lock.Unlock()
 					return
 				}
+				// gs.Str(host).Color("g").Println("connect|write")
 				_buf := make([]byte, len(prosocks5.Socks5Confirm))
 				remotecon.SetReadDeadline(time.Now().Add(10 * time.Second))
 				_, err = remotecon.Read(_buf)
 
 				if err != nil {
 					gs.Str(err.Error()).Println("connecting read|" + host)
+					if err.Error() != "timeout" {
+						panic(err)
+					}
+
 					c.lock.Lock()
 					c.ErrCount += 1
 					c.lock.Unlock()
@@ -170,7 +175,7 @@ func (c *ClientControl) Socks5Listen() {
 					c.ErrCount -= 1
 				}
 				c.lock.Unlock()
-				gs.Str("build").Println("connecting|" + host)
+				gs.Str(host).Color("g").Println("connecting|" + gs.S(c.AliveCount).Str())
 				c.Pipe(socks5con, remotecon)
 
 				c.lock.Lock()
@@ -224,6 +229,7 @@ func (c *ClientControl) ConnectRemote() (con net.Conn, err error) {
 		}
 		con, err = c.SmuxClient.NewConnnect()
 	}
+	// gs.Str("smxu connect ").Println()
 	return
 }
 

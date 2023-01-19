@@ -1,6 +1,7 @@
 package prosmux
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -31,6 +32,8 @@ type SmuxConfig struct {
 	SocketBuf    int    `json:"socketbuf"`
 	Listener     net.Listener
 	ClientConn   net.Conn
+	clienConf    *smux.Config
+	Session      *smux.Session
 	handleStream func(conn net.Conn) (err error)
 }
 
@@ -64,24 +67,32 @@ func NewSmuxClient(conn net.Conn) (s *SmuxConfig) {
 	// conf := s.GenerateConfig()
 	s.ClientConn = conn
 	s.SetAsDefault()
-	return
-}
+	s.clienConf = s.GenerateConfig()
+	mux, err := smux.Client(s.ClientConn, s.clienConf)
 
-func (s *SmuxConfig) NewConnnect() (con net.Conn, err error) {
-	conf := s.GenerateConfig()
-	mux, err := smux.Client(s.ClientConn, conf)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	s.Session = mux
+	return
+}
+
+func (s *SmuxConfig) NewConnnect() (con net.Conn, err error) {
 
 	// Create a new stream on the multiplexer
-	stream, err := mux.OpenStream()
-	if err != nil {
-		return
+	if !s.Session.IsClosed() {
+		stream, err := s.Session.OpenStream()
+		if err != nil {
+			return nil, err
+		}
+		return stream, nil
+
+	} else {
+		return nil, errors.New("session closed")
 	}
 
-	return stream, err
+	return
 }
 
 func (kconfig *SmuxConfig) UpdateMode() {
@@ -158,6 +169,7 @@ func (m *SmuxConfig) AccpetStream(conn net.Conn) (err error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			gs.Str("comming").Println("smux session accpet")
 			m.handleStream(stream)
 		}()
 	}
