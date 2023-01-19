@@ -53,6 +53,7 @@ func NewSmuxServer(listener net.Listener, handle func(con net.Conn) (err error))
 	s = new(SmuxConfig)
 	s.Listener = listener
 	s.handleStream = handle
+	s.SetAsDefault()
 	return
 }
 
@@ -61,6 +62,7 @@ func NewSmuxClient(conn net.Conn) (s *SmuxConfig) {
 	// Create a multiplexer using smux
 	// conf := s.GenerateConfig()
 	s.ClientConn = conn
+	s.SetAsDefault()
 	return
 }
 

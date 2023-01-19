@@ -41,7 +41,10 @@ func NewClientControll(addr string, listenport int) *ClientControl {
 func RecvMsg(reply gs.Str) (di any, o bool) {
 	d := reply.Json()
 	if c, ok := d["status"]; ok {
-		o = c.(bool)
+		if c.(string) == "ok" {
+			o = true
+		}
+
 		di = d["msg"]
 		return
 	} else {
@@ -75,10 +78,15 @@ func (c *ClientControl) GetAviableProxy() (conf *baseconnection.ProtocolConfig) 
 		return nil
 	}
 	if obj, ok := RecvMsg(reply); ok {
-		d := gs.AsDict[any](obj).Json()
+		// fmt.Println(obj)
+		buf, err := json.Marshal(obj)
+		if err != nil {
+			gs.Str(err.Error()).Println("Err Tr")
+			return nil
+		}
 		conf = new(baseconnection.ProtocolConfig)
 
-		if err := json.Unmarshal(d.Bytes(), conf); err != nil {
+		if err := json.Unmarshal(buf, conf); err != nil {
 			gs.Str("get aviable proxy client err :" + err.Error()).Println("Err")
 			return nil
 		}
@@ -122,7 +130,7 @@ func (c *ClientControl) Socks5Listen() {
 				}
 				remotecon, err := c.ConnectRemote()
 				if err != nil {
-					gs.Str(err.Error()).Println("connect proxy server")
+					gs.Str(err.Error()).Println("connect proxy server err")
 					return
 				}
 				defer remotecon.Close()
@@ -159,7 +167,7 @@ func (c *ClientControl) Socks5Listen() {
 					c.ErrCount -= 1
 				}
 				c.lock.Unlock()
-
+				gs.Str("build").Println("connecting|" + host)
 				c.Pipe(socks5con, remotecon)
 
 				c.lock.Lock()
@@ -180,6 +188,8 @@ func (c *ClientControl) RebuildSmux() (err error) {
 		singleTunnelConn, err = protls.ConnectTls(proxyConfig.RemoteAddr(), proxyConfig)
 	case "kcp":
 		singleTunnelConn, err = prokcp.ConnectKcp(proxyConfig.RemoteAddr(), proxyConfig)
+	default:
+		singleTunnelConn, err = prokcp.ConnectKcp(proxyConfig.RemoteAddr(), proxyConfig)
 	}
 	if singleTunnelConn != nil {
 		c.SmuxClient = prosmux.NewSmuxClient(singleTunnelConn)
@@ -196,6 +206,7 @@ func (c *ClientControl) ConnectRemote() (con net.Conn, err error) {
 	if c.SmuxClient == nil {
 		err = c.RebuildSmux()
 		if err != nil {
+			gs.Str("rebuild smux").Println("connect remote")
 			return nil, err
 		}
 	}

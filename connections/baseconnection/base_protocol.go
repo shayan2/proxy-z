@@ -93,9 +93,12 @@ func (pt *ProxyTunnel) HandleConnAsync(con net.Conn) {
 	con.SetReadDeadline(time.Now().Add(time.Minute))
 	host, _, _, err := prosocks5.GetServerRequest(con)
 	if err != nil {
+		gs.Str(err.Error()).Println("GetServerRequest | err")
 		ErrToFile("Server HandleConnection", err)
 		con.Close()
 		return
+	} else {
+		gs.Str(host).Println("host|ready")
 	}
 
 	pt.lock.Lock()
@@ -128,16 +131,18 @@ func (pt *ProxyTunnel) TcpNormal(host string, con net.Conn) (err error) {
 		} else {
 			ErrToFile("tcp normal", err)
 		}
+		gs.Str(host + "|" + err.Error()).Println("host|failed")
 		// log.Println("X connect to ->", host)
 		return err
 	}
+	gs.Str(host).Println("host|ok")
 	// con.SetWriteDeadline(time.Now().Add(2 * time.Minute))
 	_, err = con.Write(prosocks5.Socks5Confirm)
 	if err != nil {
 		ErrToFile("back con is break", err)
 		remoteConn.Close()
 	}
-
+	gs.Str(host).Println("host|build")
 	pt.Pipe(remoteConn, con)
 	return
 }
