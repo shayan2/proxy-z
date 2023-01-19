@@ -56,7 +56,7 @@ func Recv(r io.Reader, w http.ResponseWriter) (d gs.Dict[any], err error) {
 }
 
 func HTTP3Server(serverAddr, wwwDir string, useQuic bool) {
-
+	baseconnection.OpenPortUFW(gs.Str(serverAddr).Split(":")[1].TryInt())
 	quicConf := &quic.Config{}
 	handler := setupHandler(wwwDir)
 
