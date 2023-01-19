@@ -37,7 +37,7 @@ func main() {
 		return
 	}
 	// gs.Str("->" + server).Println()
-	controll.HTTP3Get(quicserver).Print()
+	controll.HTTPSGet(tlsserver).Print()
 
 }
 

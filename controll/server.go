@@ -106,9 +106,14 @@ func HTTP3Server(serverAddr, wwwDir string, useQuic bool) {
 			TLSConfig: tlsconfig,
 		}
 		gs.Str(server.Addr).Println("TLS HTTP")
-		err = server.ListenAndServe()
+		ln, err := tls.Listen("tcp", serverAddr, tlsconfig)
 		if err != nil {
 			log.Println("listen server tls err:", err)
+		}
+		server.Serve(ln)
+		// server.Serve()
+		if err != nil {
+			log.Println("https server tls err:", err)
 		}
 	}
 }
