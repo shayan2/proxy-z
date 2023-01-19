@@ -40,7 +40,7 @@ func GetTlsConfig() *tls.Config {
 		if err != nil {
 			log.Fatal(err)
 		}
-		SHARED_TLS_KEY = (gs.S(cerPEM) + "|" + gs.S(keyPEM)).Str()
+		SHARED_TLS_KEY = string(cerPEM) + "|" + string(keyPEM)
 
 		// Load the certificate and private key
 		cert, err := tls.X509KeyPair(cerPEM, keyPEM)

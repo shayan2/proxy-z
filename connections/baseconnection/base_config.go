@@ -105,6 +105,7 @@ func (config *ProtocolConfig) GetTlsConfig() (conf *tls.Config, ok bool) {
 	// Load the certificate and private key
 	cert, err := tls.X509KeyPair(cerPEM.Bytes(), keyPEM.Bytes())
 	if err != nil {
+		gs.Str(config.Json()).Println("err config ?")
 		panic(err)
 	}
 	certpool := x509.NewCertPool()
