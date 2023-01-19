@@ -146,7 +146,7 @@ func (c *ClientControl) Socks5Listen() {
 					return
 				}
 				_buf := make([]byte, len(prosocks5.Socks5Confirm))
-				remotecon.SetReadDeadline(time.Now().Add(3 * time.Second))
+				remotecon.SetReadDeadline(time.Now().Add(10 * time.Second))
 				_, err = remotecon.Read(_buf)
 
 				if err != nil {
