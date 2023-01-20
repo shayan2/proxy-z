@@ -77,6 +77,14 @@ func NewSmuxServer(listener net.Listener, handle func(con net.Conn) (err error))
 	return
 }
 
+func NewSmuxServerNull() (s *SmuxConfig) {
+	s = new(SmuxConfig)
+	// s.Listener = listener
+	// s.handleStream = handle
+	s.SetAsDefault()
+	return
+}
+
 func NewSmuxClient(conn net.Conn) (s *SmuxConfig) {
 	s = new(SmuxConfig)
 	// Create a multiplexer using smux
@@ -160,6 +168,10 @@ func (m *SmuxConfig) Server() (err error) {
 	}
 
 	// return err
+}
+
+func (m *SmuxConfig) SetHandler(handler func(con net.Conn) (err error)) {
+	m.handleStream = handler
 }
 
 func (m *SmuxConfig) AccpetStream(conn net.Conn) (err error) {

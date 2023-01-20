@@ -54,7 +54,26 @@ func (pt *ProxyTunnel) Server() (err error) {
 		return errors.New("protocol.listenre is null !!!")
 	}
 
-	if pt.UseSmux {
+	if pt.protocl.GetConfig().ProxyType == "kcp" {
+		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Single Kcp")
+		for {
+			con, err := listener.Accept()
+			if err != nil {
+				gs.Str(err.Error()).Color("r", "B").Println("kcp err")
+			}
+			smuxc := prosmux.NewSmuxServerNull()
+			smuxc.SetHandler(func(con net.Conn) (err error) {
+				pt.HandleConnAsync(con)
+				return
+			})
+
+			go smuxc.AccpetStream(con)
+			// if err != nil {
+			// 	return err
+			// }
+			// pt.HandleConnAsync(con)
+		}
+	} else if pt.UseSmux {
 		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Smux Tunnel")
 		smux := prosmux.NewSmuxServer(listener, func(con net.Conn) (err error) {
 			pt.HandleConnAsync(con)

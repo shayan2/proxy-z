@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
-	"gitee.com/dark.H/gs"
 	"github.com/xtaci/kcp-go"
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -15,45 +14,14 @@ func ConnectKcp(addr string, config *baseconnection.ProtocolConfig) (conn net.Co
 	_salt := config.SALT
 	key := pbkdf2.Key([]byte(_key), []byte(_salt), 1024, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
-
-	// dial to the echo server
-
-	MTU := 1350
 	DataShard := 10
 	ParityShard := 3
-	SndWnd := 2048 * 2
-	RcvWnd := 2048 * 2
-	AckNodelay := false
+	// gs.Str("key:%s | salt: %s | ds:%d | pd: %d | mode:%s ").F(_key, _salt, DataShard, ParityShard, config.Type).Println("kcp config")
 	kcpconn, err := kcp.DialWithOptions(addr, block, DataShard, ParityShard)
-	gs.Str("key:%s | salt: %s | ds:%d | pd: %d | mode:%s ").F(_key, _salt, DataShard, ParityShard, config.Type).Println("kcp config")
+
 	if err != nil {
 		return nil, err
 	}
-	switch config.Type {
-	case "normal":
-		// kconfig.NoDelay, kconfig.Interval, kconfig.Resend, kconfig.NoCongestion = 0, 40, 2, 1
-		kcpconn.SetNoDelay(0, 40, 2, 1)
-	case "fast":
-		kcpconn.SetNoDelay(0, 30, 2, 1)
-
-	case "fast2":
-		kcpconn.SetNoDelay(0, 20, 2, 1)
-
-	case "fast3":
-		kcpconn.SetNoDelay(1, 10, 2, 1)
-
-	case "fast4":
-
-		kcpconn.SetNoDelay(1, 5, 2, 1)
-	}
-
-	kcpconn.SetStreamMode(true)
-	kcpconn.SetWriteDelay(false)
-	kcpconn.SetStreamMode(true)
-	kcpconn.SetWriteDelay(false)
-	kcpconn.SetWindowSize(SndWnd, RcvWnd)
-	kcpconn.SetMtu(MTU)
-	kcpconn.SetACKNoDelay(AckNodelay)
 
 	return kcpconn, nil
 }
