@@ -10,7 +10,7 @@ import (
 func GetProxy() *baseconnection.ProxyTunnel {
 	if Tunnels.Count() == 0 {
 
-		tunnel := NewProxy("tls")
+		tunnel := NewProxy("kcp")
 		Tunnels = append(Tunnels, tunnel)
 		return tunnel
 	} else {
