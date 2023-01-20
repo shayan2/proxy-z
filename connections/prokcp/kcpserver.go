@@ -71,6 +71,11 @@ func (ksever *KcpServer) Accept() (con net.Conn, err error) {
 	if err != nil {
 		return
 	}
+	// KeepAlive := 10
+	// ScavengeTTL := 600
+	// AutoExpire := 7
+	// SmuxBuf := 4194304 * 2
+	// StreamBuf := 2097152 * 2
 	ksever.AcceptConn += 1
 	return
 }
@@ -86,15 +91,22 @@ func (ksever *KcpServer) GetListener() net.Listener {
 
 	key := pbkdf2.Key([]byte(_key), []byte(_salt), 4096, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
-	var listener net.Listener
+	// var listener net.Listener
 	serverAddr := gs.Str("%s:%d").F(ksever.config.Server, ksever.config.ServerPort)
 	gs.Str(serverAddr).Println("listen kcp")
-	listener, err := kcp.ListenWithOptions(serverAddr.Str(), block, 10, 3)
 
-	if err != nil {
+	SocketBuf := 4194304 * 2
+	DataShard := 10
+	ParityShard := 3
+	if listener, err := kcp.ListenWithOptions(serverAddr.Str(), block, DataShard, ParityShard); err == nil {
+		listener.SetReadBuffer(SocketBuf)
+		listener.SetWriteBuffer(SocketBuf)
+		listener.SetDSCP(0)
+		return listener
+	} else {
 		return nil
 	}
-	return listener
+
 }
 
 func (kserver *KcpServer) GetConfig() *baseconnection.ProtocolConfig {
@@ -103,6 +115,8 @@ func (kserver *KcpServer) GetConfig() *baseconnection.ProtocolConfig {
 
 func NewKcpServer(config *baseconnection.ProtocolConfig) *KcpServer {
 	k := new(KcpServer)
+	config.ProxyType = "kcp"
+	config.Type = "fast"
 	k.config = config
 
 	return k

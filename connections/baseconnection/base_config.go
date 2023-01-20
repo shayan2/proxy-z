@@ -30,7 +30,8 @@ type ProtocolConfig struct {
 	Password     string      `json:"password"`
 	Method       string      `json:"method"` // encryption method
 	Tag          string      `json:"tag"`
-
+	CryptoMethod string      `json:"c-method"`
+	ProxyType    string      `json:"proxy-type"`
 	// following options are only used by server
 	PortPassword map[string]string `json:"port_password"`
 	Timeout      int               `json:"timeout"`

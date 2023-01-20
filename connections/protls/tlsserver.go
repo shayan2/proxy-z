@@ -97,7 +97,7 @@ func NewTlsServer(config *baseconnection.ProtocolConfig) *TlsServer {
 
 	k.tlsconfig = GetTlsConfig()
 	config.Password = SHARED_TLS_KEY
-	config.Method = "tls"
+	config.ProxyType = "tls"
 	k.config = config
 
 	return k
