@@ -1,16 +1,32 @@
 package prosmux
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"gitee.com/dark.H/gs"
+	"github.com/fatih/color"
 	"github.com/xtaci/smux"
 )
+
+var FGCOLORS = []func(a ...interface{}) string{
+	color.New(color.FgYellow, color.Bold).SprintFunc(),
+	color.New(color.FgRed, color.Bold).SprintFunc(),
+	color.New(color.FgGreen, color.Bold).SprintFunc(),
+	color.New(color.FgBlue, color.Bold).SprintFunc(),
+}
+var BGCOLORS = []func(a ...interface{}) string{
+	color.New(color.BgYellow, color.Bold).SprintFunc(),
+	color.New(color.BgRed, color.Bold).SprintFunc(),
+	color.New(color.BgGreen, color.Bold).SprintFunc(),
+	color.New(color.BgBlue, color.Bold).SprintFunc(),
+}
 
 type SmuxConfig struct {
 	Mode         string `json:"mode"`
@@ -127,6 +143,7 @@ func (kconfig *SmuxConfig) GenerateConfig() *smux.Config {
 }
 
 func (m *SmuxConfig) Server() (err error) {
+	ColorD(m)
 	for {
 		// Accept a TCP connection
 		conn, err := m.Listener.Accept()
@@ -180,4 +197,26 @@ func (m *SmuxConfig) AccpetStream(conn net.Conn) (err error) {
 	mux.Close()
 
 	return
+}
+
+func ColorD(args interface{}, join ...string) {
+
+	if b, err := json.Marshal(args); err == nil {
+		var data map[string]interface{}
+		// yellow := FGCOLORS[0]
+		if err := json.Unmarshal(b, &data); err == nil {
+			var S []string
+			c := 0
+			for k, v := range data {
+				// ColorD(data)
+				S = append(S, fmt.Sprint(k, ": ", FGCOLORS[c](v)))
+				c++
+				c %= len(BGCOLORS)
+			}
+			if len(join) == 0 {
+				fmt.Println(strings.Join(S, "\n"))
+			}
+
+		}
+	}
 }
