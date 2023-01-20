@@ -84,8 +84,9 @@ func NewSmuxClient(conn net.Conn) (s *SmuxConfig) {
 	s.ClientConn = conn
 	s.SetAsDefault()
 	s.clienConf = s.GenerateConfig()
+	// s.UpdateMode()
 	mux, err := smux.Client(s.ClientConn, s.clienConf)
-
+	ColorD(s)
 	if err != nil {
 		fmt.Println(err)
 		return
