@@ -38,7 +38,7 @@ type SmuxConfig struct {
 }
 
 func (kconfig *SmuxConfig) SetAsDefault() {
-	// kconfig.Mode = "fast4"
+	kconfig.Mode = "fast"
 	kconfig.KeepAlive = 10
 	kconfig.MTU = 1350
 	kconfig.DataShard = 10
@@ -109,6 +109,7 @@ func (kconfig *SmuxConfig) UpdateMode() {
 	case "fast4":
 		kconfig.NoDelay, kconfig.Interval, kconfig.Resend, kconfig.NoCongestion = 1, 5, 2, 1
 	}
+
 	// ColorL("kcp mode", kconfig.Mode)
 }
 

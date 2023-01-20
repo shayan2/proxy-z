@@ -25,6 +25,10 @@ func ConnectKcp(addr string, config *baseconnection.ProtocolConfig) (conn net.Co
 	RcvWnd := 2048 * 2
 	AckNodelay := false
 	kcpconn, err := kcp.DialWithOptions(addr, block, DataShard, ParityShard)
+	gs.Str("key:%s | salt: %s | ds:%d | pd: %d | mode:%s ").F(_key, _salt, DataShard, ParityShard, config.Type).Println("kcp config")
+	if err != nil {
+		return nil, err
+	}
 	switch config.Type {
 	case "normal":
 		// kconfig.NoDelay, kconfig.Interval, kconfig.Resend, kconfig.NoCongestion = 0, 40, 2, 1
@@ -50,7 +54,7 @@ func ConnectKcp(addr string, config *baseconnection.ProtocolConfig) (conn net.Co
 	kcpconn.SetWindowSize(SndWnd, RcvWnd)
 	kcpconn.SetMtu(MTU)
 	kcpconn.SetACKNoDelay(AckNodelay)
-	gs.Str("key:%s | salt: %s | ds:%d | pd: %d").F(_key, _salt, DataShard, ParityShard).Println("kcp config")
+
 	return kcpconn, nil
 }
 
