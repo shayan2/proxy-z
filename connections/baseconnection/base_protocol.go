@@ -55,14 +55,14 @@ func (pt *ProxyTunnel) Server() (err error) {
 	}
 
 	if pt.UseSmux {
-		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().Method + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Smux Tunnel")
+		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Smux Tunnel")
 		smux := prosmux.NewSmuxServer(listener, func(con net.Conn) (err error) {
 			pt.HandleConnAsync(con)
 			return
 		})
 		return smux.Server()
 	} else {
-		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().Method + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Tunnel")
+		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Tunnel")
 		for {
 			con, err := listener.Accept()
 			if err != nil {

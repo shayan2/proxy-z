@@ -192,7 +192,7 @@ func (c *ClientControl) RebuildSmux() (err error) {
 	proxyConfig := c.GetAviableProxy()
 
 	var singleTunnelConn net.Conn
-	switch proxyConfig.Method {
+	switch proxyConfig.ProxyType {
 	case "tls":
 		singleTunnelConn, err = protls.ConnectTls(proxyConfig.RemoteAddr(), proxyConfig)
 	case "kcp":
@@ -204,7 +204,7 @@ func (c *ClientControl) RebuildSmux() (err error) {
 		c.SmuxClient = prosmux.NewSmuxClient(singleTunnelConn)
 	} else {
 		if err == nil {
-			err = errors.New("tls/kcp only :  now method is :" + proxyConfig.Method)
+			err = errors.New("tls/kcp only :  now method is :" + proxyConfig.ProxyType)
 		}
 		return err
 	}

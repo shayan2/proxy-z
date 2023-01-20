@@ -61,10 +61,10 @@ func (config *ProtocolConfig) GeneratePassword(plugin ...string) (en kcp.BlockCr
 	mainMethod := strings.Split(config.Method, "-")[0]
 	var keyData []byte
 	if config.SALT == "" && config.EBUFLEN == 0 {
-		keyData = pbkdf2.Key([]byte(config.Password), []byte("demo salt"), 1024, klen, sha1.New)
+		keyData = pbkdf2.Key([]byte(config.Password), []byte("kcpKCPkcp"), 1024, klen, sha1.New)
 
 		if plugin != nil {
-			keyData = pbkdf2.Key([]byte(config.Password), []byte("kcp-go"), 4096, klen, sha1.New)
+			keyData = pbkdf2.Key([]byte(config.Password), []byte("kcpKCPkcp"), 4096, klen, sha1.New)
 		}
 	} else {
 		keyData = pbkdf2.Key([]byte(config.Password), []byte(config.SALT), config.EBUFLEN, klen, sha1.New)
@@ -98,7 +98,7 @@ func (config *ProtocolConfig) RemoteAddr() string {
 
 func (config *ProtocolConfig) GetTlsConfig() (conf *tls.Config, ok bool) {
 	// SHARED_TLS_KEY = (gs.S(cerPEM) + "|" + gs.S(keyPEM)).Str()
-	if config.Method != "tls" {
+	if config.ProxyType != "tls" {
 		return nil, false
 	}
 	fs := gs.Str(config.Password).Split("|", 2)

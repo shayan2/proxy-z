@@ -40,6 +40,7 @@ func NewProxy(tp string) *baseconnection.ProxyTunnel {
 	switch tp {
 	case "tls":
 		config := baseconnection.RandomConfig()
+
 		protocl := protls.NewTlsServer(config)
 		tunel := baseconnection.NewProxyTunnel(protocl)
 		return tunel
