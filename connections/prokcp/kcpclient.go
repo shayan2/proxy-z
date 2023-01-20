@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
+	"gitee.com/dark.H/gs"
 	"github.com/xtaci/kcp-go"
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -49,7 +50,7 @@ func ConnectKcp(addr string, config *baseconnection.ProtocolConfig) (conn net.Co
 	kcpconn.SetWindowSize(SndWnd, RcvWnd)
 	kcpconn.SetMtu(MTU)
 	kcpconn.SetACKNoDelay(AckNodelay)
-
+	gs.Str("key:%s | salt: %s | ds:%d | pd: %d").F(_key, _salt, DataShard, ParityShard).Println("kcp config")
 	return kcpconn, nil
 }
 
