@@ -41,9 +41,11 @@ func ConnectKcp(addr string, config *baseconnection.ProtocolConfig) (conn net.Co
 
 		kcpconn.SetNoDelay(1, 5, 2, 1)
 	}
+
 	kcpconn.SetStreamMode(true)
 	kcpconn.SetWriteDelay(false)
-
+	kcpconn.SetStreamMode(true)
+	kcpconn.SetWriteDelay(false)
 	kcpconn.SetWindowSize(SndWnd, RcvWnd)
 	kcpconn.SetMtu(MTU)
 	kcpconn.SetACKNoDelay(AckNodelay)

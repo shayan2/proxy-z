@@ -194,12 +194,14 @@ func (c *ClientControl) RebuildSmux() (err error) {
 	var singleTunnelConn net.Conn
 	switch proxyConfig.ProxyType {
 	case "tls":
+
 		singleTunnelConn, err = protls.ConnectTls(proxyConfig.RemoteAddr(), proxyConfig)
 	case "kcp":
 		singleTunnelConn, err = prokcp.ConnectKcp(proxyConfig.RemoteAddr(), proxyConfig)
 	default:
 		singleTunnelConn, err = prokcp.ConnectKcp(proxyConfig.RemoteAddr(), proxyConfig)
 	}
+	gs.Str("--> "+proxyConfig.RemoteAddr()).Color("y", "B").Println(proxyConfig.ProxyType)
 	if singleTunnelConn != nil {
 		c.SmuxClient = prosmux.NewSmuxClient(singleTunnelConn)
 	} else {
