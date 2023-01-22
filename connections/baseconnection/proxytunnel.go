@@ -154,7 +154,7 @@ func (pt *ProxyTunnel) TcpNormal(host string, con net.Conn) (err error) {
 		// log.Println("X connect to ->", host)
 		return err
 	}
-	gs.Str(host).Println("host|ok")
+	// gs.Str(host).Println("host|ok")
 	// con.SetWriteDeadline(time.Now().Add(2 * time.Minute))
 	_, err = con.Write(prosocks5.Socks5Confirm)
 	if err != nil {
@@ -168,7 +168,7 @@ func (pt *ProxyTunnel) TcpNormal(host string, con net.Conn) (err error) {
 
 func (pt *ProxyTunnel) Pipe(p1, p2 net.Conn) {
 	var wg sync.WaitGroup
-	var wait = 15 * time.Second
+	var wait = 5 * time.Second
 	wg.Add(1)
 	streamCopy := func(dst net.Conn, src net.Conn, fr, to net.Addr) {
 		// startAt := time.Now()
