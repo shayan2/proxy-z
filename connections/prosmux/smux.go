@@ -50,6 +50,7 @@ type SmuxConfig struct {
 	ClientConn   net.Conn
 	clienConf    *smux.Config
 	Session      *smux.Session
+	ZeroToDel    *bool
 	handleStream func(conn net.Conn) (err error)
 }
 
@@ -152,9 +153,12 @@ func (kconfig *SmuxConfig) GenerateConfig() *smux.Config {
 }
 
 func (m *SmuxConfig) Server() (err error) {
-	ColorD(m)
+	// ColorD(m)
 	for {
 		// Accept a TCP connection
+		if *m.ZeroToDel {
+			break
+		}
 		conn, err := m.Listener.Accept()
 		if err != nil {
 			time.Sleep(10 * time.Second)
@@ -166,7 +170,8 @@ func (m *SmuxConfig) Server() (err error) {
 
 		go m.AccpetStream(conn)
 	}
-
+	m.Listener.Close()
+	return nil
 	// return err
 }
 

@@ -25,6 +25,7 @@ type ProxyTunnel struct {
 	protocl      Protocol
 	UseSmux      bool
 	On           bool
+	ZeroToDel    bool
 	ControllFunc func(rawHost string, con net.Conn) (err error)
 }
 
@@ -42,8 +43,10 @@ func (pt *ProxyTunnel) Start() (err error) {
 	return
 }
 func (pt *ProxyTunnel) Server() (err error) {
+	serverPort := pt.GetConfig().ServerPort
 	defer func() {
 		pt.On = false
+		ClosePortUFW(serverPort)
 	}()
 
 	if pt.protocl == nil {
@@ -57,6 +60,9 @@ func (pt *ProxyTunnel) Server() (err error) {
 	if pt.protocl.GetConfig().ProxyType == "kcp" {
 		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Single Kcp")
 		for {
+			if pt.ZeroToDel {
+				break
+			}
 			con, err := listener.Accept()
 			if err != nil {
 				gs.Str(err.Error()).Color("r", "B").Println("kcp err")
@@ -79,10 +85,15 @@ func (pt *ProxyTunnel) Server() (err error) {
 			pt.HandleConnAsync(con)
 			return
 		})
+		smux.ZeroToDel = &pt.ZeroToDel
+
 		return smux.Server()
 	} else {
 		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Tunnel")
 		for {
+			if pt.ZeroToDel {
+				break
+			}
 			con, err := listener.Accept()
 			if err != nil {
 				return err
@@ -90,6 +101,14 @@ func (pt *ProxyTunnel) Server() (err error) {
 			pt.HandleConnAsync(con)
 		}
 	}
+	listener.Close()
+
+	return
+}
+
+func (pt *ProxyTunnel) SetWaitToClose() {
+	pt.ZeroToDel = true
+
 }
 
 func (pt *ProxyTunnel) SetProtocol(procol Protocol) {
@@ -138,6 +157,10 @@ func (pt *ProxyTunnel) HandleConnAsync(con net.Conn) {
 	} else {
 		pt.TcpNormal(host, con)
 	}
+}
+
+func (pt *ProxyTunnel) GetConnectNum() int {
+	return pt.alive
 }
 
 func (pt *ProxyTunnel) TcpNormal(host string, con net.Conn) (err error) {

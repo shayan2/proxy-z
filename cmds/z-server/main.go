@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"gitee.com/dark.H/ProxyZ/controll"
+	"gitee.com/dark.H/ProxyZ/servercontroll"
 	"gitee.com/dark.H/gs"
 )
 
@@ -22,7 +22,7 @@ func main() {
 		gs.Str(www).Mkdir()
 	}
 	// gs.Str(quicserver).Println("Server Run")
-	go controll.HTTP3Server(quicserver, www, true)
-	controll.HTTP3Server(tlsserver, www, false)
+	go servercontroll.HTTP3Server(quicserver, www, true)
+	servercontroll.HTTP3Server(tlsserver, www, false)
 
 }

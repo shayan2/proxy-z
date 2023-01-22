@@ -1,4 +1,4 @@
-package controll
+package servercontroll
 
 import (
 	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
@@ -24,6 +24,7 @@ func DelProxy(name string) (found bool) {
 	e := gs.List[*baseconnection.ProxyTunnel]{}
 	for _, tun := range Tunnels {
 		if tun.GetConfig().ID == name {
+			tun.SetWaitToClose()
 			found = true
 			continue
 		} else {
@@ -33,6 +34,17 @@ func DelProxy(name string) (found bool) {
 	GLOCK.Lock()
 	Tunnels = e
 	GLOCK.Unlock()
+	return
+}
+
+func GetProxyByID(name string) (c *baseconnection.ProxyTunnel) {
+	for _, tun := range Tunnels {
+		if tun.GetConfig().ID == name {
+			return tun
+		} else {
+
+		}
+	}
 	return
 }
 

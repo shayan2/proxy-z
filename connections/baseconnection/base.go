@@ -73,6 +73,13 @@ func OpenPortUFW(port int) {
 	}
 }
 
+func ClosePortUFW(port int) {
+	if runtime.GOOS == "linux" {
+		gs.Str("close port :%d").F(port).Println()
+		gs.Str("ufw delete allow %d").F(port).Exec()
+	}
+}
+
 func GiveAPort() (port int) {
 	for {
 		port = 40000 + rand.Int()%10000

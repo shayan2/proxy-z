@@ -1,4 +1,4 @@
-package controll
+package servercontroll
 
 import (
 	"net/http"
@@ -28,7 +28,7 @@ func setupHandler(www string) http.Handler {
 		mux.HandleFunc("/z-files-u", uploadFileFunc(www))
 	}
 	mux.HandleFunc("/z-info", func(w http.ResponseWriter, r *http.Request) {
-		d, err := Recv(r.Body, w)
+		d, err := Recv(r.Body)
 		if err != nil {
 			w.WriteHeader(400)
 			Reply(w, err, false)
@@ -51,6 +51,22 @@ func setupHandler(www string) http.Handler {
 		Reply(w, str, true)
 	})
 
+	mux.HandleFunc("/proxy-err", func(w http.ResponseWriter, r *http.Request) {
+		d, err := Recv(r.Body)
+		if err != nil {
+			w.WriteHeader(400)
+			Reply(w, err, false)
+		}
+		if id, ok := d["id"]; ok && id != nil {
+			idstr := id.(string)
+			if DelProxy(idstr) {
+				tu := NewProxy("tls")
+				#### Hear Dev
+			}
+		}
+
+	})
+
 	mux.HandleFunc("/proxy-new", func(w http.ResponseWriter, r *http.Request) {
 		tu := NewProxy("tls")
 
@@ -59,7 +75,7 @@ func setupHandler(www string) http.Handler {
 	})
 
 	mux.HandleFunc("/proxy-del", func(w http.ResponseWriter, r *http.Request) {
-		d, err := Recv(r.Body, w)
+		d, err := Recv(r.Body)
 		if err != nil {
 			w.WriteHeader(400)
 			Reply(w, err, false)

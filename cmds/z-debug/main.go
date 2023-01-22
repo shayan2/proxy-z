@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"gitee.com/dark.H/ProxyZ/controll"
+	"gitee.com/dark.H/ProxyZ/servercontroll"
 	"gitee.com/dark.H/gs"
 )
 
@@ -24,20 +24,20 @@ func main() {
 	args := gs.List[string](flag.Args()).Join(" ")
 	if args != "" {
 		data := args.ParseKV()
-		controll.HTTP3Post(quicserver, toany(data)).Print()
+		servercontroll.HTTP3Post(quicserver, toany(data)).Print()
 		return
 	}
 	if filename != "" {
 		gs.Str("Downloads").Mkdir()
-		controll.HTTP3DownFile(gs.Str(quicserver), gs.Str(filename), gs.Str("Downloads").PathJoin(filename)).Print()
+		servercontroll.HTTP3DownFile(gs.Str(quicserver), gs.Str(filename), gs.Str("Downloads").PathJoin(filename)).Print()
 		return
 	}
 	if filePath != "" {
-		controll.HTTP3UploadFile(gs.Str(quicserver), gs.Str(filePath)).Print()
+		servercontroll.HTTP3UploadFile(gs.Str(quicserver), gs.Str(filePath)).Print()
 		return
 	}
 	// gs.Str("->" + server).Println()
-	controll.HTTPSGet(tlsserver).Print()
+	servercontroll.HTTPSGet(tlsserver).Print()
 
 }
 

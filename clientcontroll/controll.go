@@ -1,4 +1,4 @@
-package client
+package clientcontroll
 
 import (
 	"bytes"
@@ -15,8 +15,12 @@ import (
 	"gitee.com/dark.H/ProxyZ/connections/prosmux"
 	"gitee.com/dark.H/ProxyZ/connections/prosocks5"
 	"gitee.com/dark.H/ProxyZ/connections/protls"
-	"gitee.com/dark.H/ProxyZ/controll"
+	"gitee.com/dark.H/ProxyZ/servercontroll"
 	"gitee.com/dark.H/gs"
+)
+
+var (
+	errInvalidWrite = errors.New("invalid write result")
 )
 
 type ClientControl struct {
@@ -53,6 +57,54 @@ func RecvMsg(reply gs.Str) (di any, o bool) {
 	}
 }
 
+func (c *ClientControl) ReportErrorProxy() (conf *baseconnection.ProtocolConfig) {
+
+	var addr string
+	useTls := false
+	if c.Addr.StartsWith("tls://") {
+		addr = c.Addr.Split("://")[1].Str()
+		useTls = true
+	} else if c.Addr.In("://") {
+		addr = c.Addr.Split("://")[1].Str()
+	} else {
+		addr = c.Addr.Str()
+	}
+	var reply gs.Str
+	if useTls {
+		reply = servercontroll.HTTPSPost("https://"+addr+"/proxy-error", gs.Dict[any]{
+			"ID": c.nowconf.ID,
+		})
+	} else {
+		reply = servercontroll.HTTP3Post("https://"+addr+"/proxy-error", gs.Dict[any]{
+			"ID": c.nowconf.ID,
+		})
+	}
+
+	if reply == "" {
+		return nil
+	}
+	if obj, ok := RecvMsg(reply); ok {
+		// fmt.Println(obj)
+		buf, err := json.Marshal(obj)
+		if err != nil {
+			gs.Str(err.Error()).Println("Err Tr")
+			return nil
+		}
+		conf = new(baseconnection.ProtocolConfig)
+
+		if err := json.Unmarshal(buf, conf); err != nil {
+			gs.Str("get aviable proxy client err :" + err.Error()).Println("Err")
+			return nil
+		}
+		if conf.Server == "0.0.0.0" {
+			conf.Server = gs.Str(addr).Split(":")[0].Trim()
+		}
+		c.nowconf = conf
+	}
+
+	return
+}
+
 func (c *ClientControl) GetAviableProxy() (conf *baseconnection.ProtocolConfig) {
 	if c.nowconf != nil {
 		return c.nowconf
@@ -69,9 +121,9 @@ func (c *ClientControl) GetAviableProxy() (conf *baseconnection.ProtocolConfig) 
 	}
 	var reply gs.Str
 	if useTls {
-		reply = controll.HTTPSPost("https://"+addr+"/proxy-get", nil)
+		reply = servercontroll.HTTPSPost("https://"+addr+"/proxy-get", nil)
 	} else {
-		reply = controll.HTTP3Post("https://"+addr+"/proxy-get", nil)
+		reply = servercontroll.HTTP3Post("https://"+addr+"/proxy-get", nil)
 	}
 
 	if reply == "" {
@@ -153,7 +205,7 @@ func (c *ClientControl) Socks5Listen() {
 				if err != nil {
 					gs.Str(err.Error()).Println("connecting read|" + host)
 					if err.Error() != "timeout" {
-						panic(err)
+						baseconnection.ErrToFile("err in client controll.go :160", err)
 					}
 
 					c.lock.Lock()
@@ -177,7 +229,8 @@ func (c *ClientControl) Socks5Listen() {
 				c.lock.Unlock()
 				gs.Str(host).Color("g").Println("connecting|" + gs.S(c.AliveCount).Str())
 				c.Pipe(socks5con, remotecon)
-
+				socks5con.Close()
+				remotecon.Close()
 				c.lock.Lock()
 				c.AliveCount -= 1
 				c.lock.Unlock()
@@ -222,6 +275,14 @@ func (c *ClientControl) ConnectRemote() (con net.Conn, err error) {
 		}
 	}
 	// connted := false
+	if c.SmuxClient.Session.IsClosed() {
+		err = c.RebuildSmux()
+		if err != nil {
+			gs.Str("rebuild smux").Println("connect remote")
+			return nil, err
+		}
+	}
+
 	con, err = c.SmuxClient.NewConnnect()
 	if err != nil {
 		gs.Str("rebuild smux").Println("connect remote")
@@ -236,13 +297,16 @@ func (c *ClientControl) ConnectRemote() (con net.Conn, err error) {
 }
 
 func (c *ClientControl) Pipe(p1, p2 net.Conn) {
+	Pipe(p1, p2)
+}
+
+func Pipe(p1, p2 net.Conn) {
 	var wg sync.WaitGroup
-	var wait = 15 * time.Second
+	var wait int = 10
 	wg.Add(1)
 	streamCopy := func(dst net.Conn, src net.Conn, fr, to net.Addr) {
 		// startAt := time.Now()
-		Copy(dst, src)
-		dst.SetReadDeadline(time.Now().Add(wait))
+		Copy(dst, src, wait)
 		p1.Close()
 		p2.Close()
 		// }()
@@ -257,7 +321,7 @@ func (c *ClientControl) Pipe(p1, p2 net.Conn) {
 }
 
 // Memory optimized io.Copy function specified for this library
-func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
+func Copy(dst io.Writer, src io.Reader, timeout ...int) (written int64, err error) {
 	// If the reader has a WriteTo method, use it to do the copy.
 	// Avoids an allocation and a copy.
 	if wt, ok := src.(io.WriterTo); ok {
@@ -265,31 +329,73 @@ func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
 	}
 	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
 	if rt, ok := dst.(io.ReaderFrom); ok {
+		if timeout != nil {
+			src.(net.Conn).SetReadDeadline(time.Now().Add(time.Duration(timeout[0]) * time.Second))
+		}
 		return rt.ReadFrom(src)
 	}
 
 	// fallback to standard io.CopyBuffer
 	buf := make([]byte, 4096)
-	return io.CopyBuffer(dst, src, buf)
+	return copyBuffer(dst, src, buf, timeout...)
 }
 
-func Pipe(p1, p2 net.Conn) {
-	var wg sync.WaitGroup
-	var wait = 15 * time.Second
-	wg.Add(1)
-	streamCopy := func(dst net.Conn, src net.Conn, fr, to net.Addr) {
-		// startAt := time.Now()
-		Copy(dst, src)
-		dst.SetReadDeadline(time.Now().Add(wait))
-		p1.Close()
-		p2.Close()
-		// }()
+func copyBuffer(dst io.Writer, src io.Reader, buf []byte, timeout ...int) (written int64, err error) {
+	if buf != nil && len(buf) == 0 {
+		panic("empty buffer in CopyBuffer")
 	}
-
-	go func(p1, p2 net.Conn) {
-		wg.Done()
-		streamCopy(p1, p2, p2.RemoteAddr(), p1.RemoteAddr())
-	}(p1, p2)
-	streamCopy(p2, p1, p1.RemoteAddr(), p2.RemoteAddr())
-	wg.Wait()
+	// If the reader has a WriteTo method, use it to do the copy.
+	// Avoids an allocation and a copy.
+	if wt, ok := src.(io.WriterTo); ok {
+		return wt.WriteTo(dst)
+	}
+	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
+	if rt, ok := dst.(io.ReaderFrom); ok {
+		if timeout != nil {
+			src.(net.Conn).SetReadDeadline(time.Now().Add(time.Duration(timeout[0]) * time.Second))
+		}
+		return rt.ReadFrom(src)
+	}
+	if buf == nil {
+		size := 32 * 1024
+		if l, ok := src.(*io.LimitedReader); ok && int64(size) > l.N {
+			if l.N < 1 {
+				size = 1
+			} else {
+				size = int(l.N)
+			}
+		}
+		buf = make([]byte, size)
+	}
+	for {
+		if timeout != nil {
+			src.(net.Conn).SetReadDeadline(time.Now().Add(time.Duration(timeout[0]) * time.Second))
+		}
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if nw < 0 || nr < nw {
+				nw = 0
+				if ew == nil {
+					ew = errInvalidWrite
+				}
+			}
+			written += int64(nw)
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != io.EOF {
+				err = er
+			}
+			break
+		}
+	}
+	return written, err
 }

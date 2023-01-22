@@ -1,4 +1,4 @@
-package controll
+package servercontroll
 
 import (
 	"crypto/tls"
@@ -40,7 +40,7 @@ func Reply(w io.Writer, msg any, status bool) {
 	}
 }
 
-func Recv(r io.Reader, w http.ResponseWriter) (d gs.Dict[any], err error) {
+func Recv(r io.Reader) (d gs.Dict[any], err error) {
 	buf, err := ioutil.ReadAll(r)
 	if err != io.EOF && err != nil {
 		// w.WriteHeader(400)

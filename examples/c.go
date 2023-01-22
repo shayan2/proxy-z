@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"gitee.com/dark.H/ProxyZ/client"
+	"gitee.com/dark.H/ProxyZ/clientcontroll"
 	"gitee.com/dark.H/ProxyZ/connections/prosocks5"
 	"gitee.com/dark.H/gs"
 	"github.com/xtaci/kcp-go"
@@ -93,7 +93,7 @@ func main() {
 				}
 
 				gs.Str(host).Color("g").Println("connecting|")
-				client.Pipe(socks5con, remotecon)
+				clientcontroll.Pipe(socks5con, remotecon)
 
 			}(socks5con)
 
@@ -146,7 +146,7 @@ func SServer(addr string) {
 				}
 				defer c.Close()
 				gs.Str(host).Println("host|build")
-				client.Pipe(remoteConn, c)
+				clientcontroll.Pipe(remoteConn, c)
 
 			}(con)
 

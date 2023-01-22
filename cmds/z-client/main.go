@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"gitee.com/dark.H/ProxyZ/client"
+	"gitee.com/dark.H/ProxyZ/clientcontroll"
 )
 
 func main() {
@@ -13,6 +13,6 @@ func main() {
 	flag.IntVar(&l, "l", 1080, "set listen port")
 	flag.Parse()
 
-	cli := client.NewClientControll(cl, l)
+	cli := clientcontroll.NewClientControll(cl, l)
 	cli.Socks5Listen()
 }
