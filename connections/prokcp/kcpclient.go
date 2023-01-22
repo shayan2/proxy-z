@@ -12,7 +12,7 @@ import (
 func ConnectKcp(addr string, config *baseconnection.ProtocolConfig) (conn net.Conn, err error) {
 	_key := config.Password
 	_salt := config.SALT
-	key := pbkdf2.Key([]byte(_key), []byte(_salt), 1024, 32, sha1.New)
+	key := pbkdf2.Key([]byte(_key), []byte(_salt), 4096, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
 	DataShard := 10
 	ParityShard := 3

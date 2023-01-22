@@ -19,7 +19,7 @@ var (
 	_key  = "hello world!"
 	_salt = "hello Golang World !"
 	KEY   = "demo passdemo pass!"
-	SALT  = "demo saltfasdfssssss"
+	SALT  = "demo saltfasdfss"
 )
 
 func main() {
