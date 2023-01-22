@@ -114,7 +114,7 @@ func SServer(p int) {
 	key := pbkdf2.Key([]byte(_key), []byte(_salt), 4096, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
 	// var listener net.Listener
-	serverAddr := gs.Str("0.0.0.0:%d").F(p)
+	serverAddr := gs.Str(":%d").F(p)
 
 	DataShard := 10
 	ParityShard := 3
@@ -122,7 +122,7 @@ func SServer(p int) {
 	gs.Str(addr).Println("listen kcp")
 	if listener, err := kcp.ListenWithOptions(addr, block, DataShard, ParityShard); err == nil {
 		for {
-			con, err := listener.Accept()
+			con, err := listener.AcceptKCP()
 			if err != nil {
 				panic(err)
 			}
