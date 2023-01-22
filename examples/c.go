@@ -118,7 +118,7 @@ func connect(t string) (c net.Conn, err error) {
 func SServer(addr string) {
 	key := pbkdf2.Key([]byte(_key), []byte(_salt), 4096, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
-	if listener, err := kcp.ListenWithOptions("0.0.0.0:12345", block, 10, 3); err == nil {
+	if listener, err := kcp.ListenWithOptions(addr, block, 10, 3); err == nil {
 		for {
 			con, err := listener.Accept()
 			if err != nil {
