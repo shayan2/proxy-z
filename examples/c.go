@@ -18,6 +18,8 @@ import (
 var (
 	_key  = "hello world!"
 	_salt = "hello Golang World !"
+	KEY   = "demo passdemo pass!"
+	SALT  = "demo saltfasdfssssss"
 )
 
 func main() {
@@ -57,8 +59,12 @@ func main() {
 				if err != nil {
 					gs.Str(err.Error()).Println("connect proxy server err")
 					return
+				} else {
+					gs.Str(t).Println("++")
 				}
 				defer remotecon.Close()
+				// time.Sleep(1 * time.Second)
+				gs.S(raw).Println("Write")
 				_, err = remotecon.Write(raw)
 				if err != nil {
 					gs.Str(err.Error()).Println("connecting write|" + host)
@@ -94,13 +100,13 @@ func main() {
 		}
 
 	} else {
-		SServer(44806)
+		SServer(t)
 	}
 
 }
 
 func connect(t string) (c net.Conn, err error) {
-	key := pbkdf2.Key([]byte(_key), []byte(_salt), 1024, 32, sha1.New)
+	key := pbkdf2.Key([]byte(_key), []byte(_salt), 4096, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
 	DataShard := 10
 	ParityShard := 3
@@ -109,48 +115,44 @@ func connect(t string) (c net.Conn, err error) {
 	return kcpconn, err
 }
 
-func SServer(p int) {
-
+func SServer(addr string) {
 	key := pbkdf2.Key([]byte(_key), []byte(_salt), 4096, 32, sha1.New)
 	block, _ := kcp.NewAESBlockCrypt(key)
-	// var listener net.Listener
-	serverAddr := gs.Str(":%d").F(p)
-
-	DataShard := 10
-	ParityShard := 3
-	addr := serverAddr.Str()
-	gs.Str(addr).Println("listen kcp")
-	if listener, err := kcp.ListenWithOptions(addr, block, DataShard, ParityShard); err == nil {
+	if listener, err := kcp.ListenWithOptions("0.0.0.0:12345", block, 10, 3); err == nil {
 		for {
-			con, err := listener.AcceptKCP()
+			con, err := listener.Accept()
 			if err != nil {
 				panic(err)
 			}
-			gs.Str("accept ").Println()
-			host, _, _, err := prosocks5.GetServerRequest(con)
-			if err != nil {
-				panic(err)
-			}
-			gs.Str(host).Println("server host")
-			remoteConn, err := net.Dial("tcp", host)
-			if err != nil {
-				log.Fatal("dial remote host err:", host)
-			}
-			gs.Str(host).Println("host|ok")
-			// con.SetWriteDeadline(time.Now().Add(2 * time.Minute))
-			_, err = con.Write(prosocks5.Socks5Confirm)
-			if err != nil {
-				// ErrToFile("back con is break", err)
-				remoteConn.Close()
-				panic(err)
+			go func(c net.Conn) {
+				gs.Str("accept ").Println()
+				host, _, _, err := prosocks5.GetServerRequest(c)
+				if err != nil {
+					panic(err)
+				}
+				gs.Str(host).Println("server host")
+				remoteConn, err := net.Dial("tcp", host)
+				if err != nil {
+					log.Fatal("dial remote host err:", host)
+				}
+				gs.Str(host).Println("host|ok")
+				// con.SetWriteDeadline(time.Now().Add(2 * time.Minute))
+				_, err = c.Write(prosocks5.Socks5Confirm)
+				if err != nil {
+					// ErrToFile("back con is break", err)
+					remoteConn.Close()
+					panic(err)
 
-			}
-			gs.Str(host).Println("host|build")
-			client.Pipe(remoteConn, con)
+				}
+				defer c.Close()
+				gs.Str(host).Println("host|build")
+				client.Pipe(remoteConn, c)
+
+			}(con)
 
 		}
 
 	} else {
-
+		log.Fatal(err)
 	}
 }

@@ -175,7 +175,7 @@ func RandomConfig() *ProtocolConfig {
 	c.Server = "0.0.0.0"
 	c.ServerPassword = string(gs.Str("").RandStr(16))
 	c.Password = string(gs.Str("").RandStr(16))
-	c.SALT = string(gs.Str("").RandStr(32))
+	c.SALT = string(gs.Str("").RandStr(8))
 	c.Method = "aes-256"
 	c.EBUFLEN = 4096
 	c.ID = string(gs.Str("").RandStr(32))
