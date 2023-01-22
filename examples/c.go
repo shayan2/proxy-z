@@ -123,10 +123,15 @@ func SServer(p int) {
 	if listener, err := kcp.ListenWithOptions(addr, block, DataShard, ParityShard); err == nil {
 		for {
 			con, err := listener.Accept()
+			if err != nil {
+				panic(err)
+			}
+			gs.Str("accept ").Println()
 			host, _, _, err := prosocks5.GetServerRequest(con)
 			if err != nil {
 				panic(err)
 			}
+			gs.Str(host).Println("server host")
 			remoteConn, err := net.Dial("tcp", host)
 			if err != nil {
 				log.Fatal("dial remote host err:", host)
