@@ -272,3 +272,24 @@ func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
 	buf := make([]byte, 4096)
 	return io.CopyBuffer(dst, src, buf)
 }
+
+func Pipe(p1, p2 net.Conn) {
+	var wg sync.WaitGroup
+	var wait = 15 * time.Second
+	wg.Add(1)
+	streamCopy := func(dst net.Conn, src net.Conn, fr, to net.Addr) {
+		// startAt := time.Now()
+		Copy(dst, src)
+		dst.SetReadDeadline(time.Now().Add(wait))
+		p1.Close()
+		p2.Close()
+		// }()
+	}
+
+	go func(p1, p2 net.Conn) {
+		wg.Done()
+		streamCopy(p1, p2, p2.RemoteAddr(), p1.RemoteAddr())
+	}(p1, p2)
+	streamCopy(p2, p1, p1.RemoteAddr(), p2.RemoteAddr())
+	wg.Wait()
+}
