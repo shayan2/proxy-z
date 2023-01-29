@@ -21,6 +21,12 @@ func main() {
 	flag.StringVar(&dev, "dev", "", "use ssh to devploy proxy server ; example -dev 'user@host:port/pwd' ")
 	flag.Parse()
 
+	if !gs.Str(server).In(":") {
+		server += ":55443"
+	}
+	if !gs.Str(server).In("://") {
+		server = "https://" + server
+	}
 	if dev != "" {
 		deploy.DepBySSH(dev)
 		os.Exit(0)
