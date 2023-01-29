@@ -69,7 +69,7 @@ func Update(beforeExit func(info string, ok bool), repo ...string) {
 	gs.Str("Start New Version !").Color("g").Println()
 	info += gs.Str("\nStart New Version !").Color("g")
 	beforeExit(info.Str(), true)
-	Daemon(args, "/tmp/p.log")
+	Daemon(args, "/tmp/z.log")
 	time.Sleep(3 * time.Second)
 	gs.Str("Exit old Version !").Color("g").Println()
 	os.Exit(0)
