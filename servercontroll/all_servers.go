@@ -2,6 +2,7 @@ package servercontroll
 
 import (
 	"net/http"
+	"os"
 
 	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
 	"gitee.com/dark.H/ProxyZ/update"
@@ -94,6 +95,7 @@ func setupHandler(www string) http.Handler {
 		update.Update(func(info string, ok bool) {
 			Reply(w, info, ok)
 		})
+		os.Exit(0)
 		// }
 	})
 

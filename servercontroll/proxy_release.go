@@ -48,6 +48,7 @@ func DelProxy(name string) (found bool) {
 			continue
 		}
 		if tun.GetConfig().ID == name {
+			baseconnection.ClosePortUFW(tun.GetConfig().ServerPort)
 			if num, ok := ErrTypeCount[tun.GetConfig().ProxyType]; ok {
 				num += 1
 				lock.Lock()
