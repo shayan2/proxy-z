@@ -80,13 +80,16 @@ func setupHandler(www string) http.Handler {
 	})
 
 	mux.HandleFunc("/proxy-err", func(w http.ResponseWriter, r *http.Request) {
+
 		d, err := Recv(r.Body)
+
 		if err != nil {
 			w.WriteHeader(400)
 			Reply(w, err, false)
 		}
 		if id, ok := d["ID"]; ok && id != nil {
 			idstr := id.(string)
+			gs.Str(idstr).Color("r").Println("proxy-err")
 			DelProxy(idstr)
 		}
 		tu := NewProxyByErrCount()

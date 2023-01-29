@@ -65,6 +65,9 @@ func (c *ClientControl) ReportErrorProxy() (conf *baseconnection.ProtocolConfig)
 	if c.Addr.StartsWith("tls://") {
 		addr = c.Addr.Split("://")[1].Str()
 		useTls = true
+	} else if c.Addr.In("https://") {
+		addr = c.Addr.Split("://")[1].Str()
+		useTls = true
 	} else if c.Addr.In("://") {
 		addr = c.Addr.Split("://")[1].Str()
 	} else {
@@ -113,6 +116,9 @@ func (c *ClientControl) GetAviableProxy() (conf *baseconnection.ProtocolConfig) 
 	var addr string
 	useTls := false
 	if c.Addr.StartsWith("tls://") {
+		addr = c.Addr.Split("://")[1].Str()
+		useTls = true
+	} else if c.Addr.StartsWith("https://") {
 		addr = c.Addr.Split("://")[1].Str()
 		useTls = true
 	} else if c.Addr.In("://") {
@@ -204,7 +210,7 @@ func (c *ClientControl) Socks5Listen() (err error) {
 				}
 				// gs.Str(host).Color("g").Println("connect|write")
 				_buf := make([]byte, len(prosocks5.Socks5Confirm))
-				remotecon.SetReadDeadline(time.Now().Add(5 * time.Second))
+				remotecon.SetReadDeadline(time.Now().Add(18 * time.Second))
 				_, err = remotecon.Read(_buf)
 
 				if err != nil {
@@ -233,6 +239,7 @@ func (c *ClientControl) Socks5Listen() (err error) {
 				}
 				c.lock.Unlock()
 				gs.Str(host).Color("g").Println("connecting|" + gs.S(c.AliveCount).Str())
+				remotecon.SetReadDeadline(time.Now().Add(30 * time.Minute))
 				c.Pipe(socks5con, remotecon)
 				socks5con.Close()
 				remotecon.Close()
@@ -310,7 +317,7 @@ func (c *ClientControl) Pipe(p1, p2 net.Conn) {
 
 func Pipe(p1, p2 net.Conn) {
 	var wg sync.WaitGroup
-	var wait int = 10
+	var wait int = 1800
 	wg.Add(1)
 	streamCopy := func(dst net.Conn, src net.Conn, fr, to net.Addr) {
 		// startAt := time.Now()

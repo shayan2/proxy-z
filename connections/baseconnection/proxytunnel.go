@@ -126,7 +126,7 @@ func (pt *ProxyTunnel) HandleConnAsync(con net.Conn) {
 		con.Close()
 		return
 	} else {
-		gs.Str(host).Println("host|ready")
+		// gs.Str(host).Println("host|ready")
 	}
 
 	pt.lock.Lock()
