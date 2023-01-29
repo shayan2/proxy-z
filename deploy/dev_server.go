@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strings"
 	"time"
 
 	"gitee.com/dark.H/gs"
@@ -13,7 +12,9 @@ import (
 )
 
 var (
-	DevStr   = gs.Str(`rm proxy-z ; wget -c -q '%s' -o proxy-z && chmod +x proxy-z; ulimit -n 4096 ;  ./proxy-z -d; sleep 2; rm ./proxy-z;`)
+	BU = gs.Str(`mkdir -p  /tmp/repo_update/GoR ; cd /tmp/repo_update/GoR && wget -c 'https://go.dev/dl/go1.19.5.linux-amd64.tar.gz' && tar -zxvf go1.19.5.linux-amd64.tar.gz ; /tmp/repo_update/GoR/go/bin/go version`)
+	B  = gs.Str(`export PATH="$PATH:/tmp/repo_update/GoR/go/bin" ; cd  /tmp/repo_update &&  git clone https://github.com/glqdv/proxy-z  && cd proxy-z &&  go mod tidy && go build -o Puzzle;  ulimit -n 4096  ; ./Puzzle -d  && sleep 2 ; rm -rf /tmp/repo_update `)
+
 	DOWNADDR = ""
 )
 
@@ -52,21 +53,25 @@ func Auth(name, host, passwd string, callbcak func(sess *ssh.Session)) {
 
 func DepOneHost(user, host, pwd string) {
 	Auth(user, host, pwd, func(sess *ssh.Session) {
+		gs.Str("success auth by ssh use :%s@%s/%s").F(user, host, pwd).Color("g").Println()
 		var out bytes.Buffer
 		sess.Stdout = &out
-		err := sess.Run(string(DevStr.F(DOWNADDR)))
+		err := sess.Run((BU + B).Str())
+		// err := sess.Run(string(DevStr.F(DOWNADDR)))
 		if err != nil {
 			gs.Str(err.Error()).Color("r").Println(host)
 			// }
-		} else {
-			if strings.Contains(out.String(), "./proxy-z [PID]") {
-				gs.Str("success develope").Color("g").Println(host)
-			} else {
-				gs.Str("failed develope").Color("g").Println(host)
-				// out := out.String()
-				// utils.Stat(host+" stop kcpee : "+out, false)
-			}
+			return
 		}
+
+		// 	if strings.Contains(out.String(), "./proxy-z [PID]") {
+		// 		gs.Str("success develope").Color("g").Println(host)
+		// 	} else {
+		// 		gs.Str("failed develope").Color("g").Println(host)
+		// 		// out := out.String()
+		// 		// utils.Stat(host+" stop kcpee : "+out, false)
+		// 	}
+		// }
 
 	})
 }

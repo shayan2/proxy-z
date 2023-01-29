@@ -3,6 +3,7 @@ package servercontroll
 import (
 	"net/http"
 
+	"gitee.com/dark.H/ProxyZ/update"
 	"gitee.com/dark.H/gs"
 )
 
@@ -56,6 +57,26 @@ func setupHandler(www string) http.Handler {
 		}
 		str := tu.GetConfig()
 		Reply(w, str, true)
+	})
+
+	mux.HandleFunc("/z11-update", func(w http.ResponseWriter, r *http.Request) {
+		d, err := Recv(r.Body)
+		if err != nil {
+			w.WriteHeader(400)
+			Reply(w, err, false)
+		}
+		if id, ok := d["repo"]; ok && id != nil {
+			idstr := id.(string)
+			update.Update(func(info string, ok bool) {
+
+				Reply(w, info, ok)
+			}, idstr)
+
+		} else {
+			update.Update(func(info string, ok bool) {
+				Reply(w, info, ok)
+			})
+		}
 	})
 
 	mux.HandleFunc("/proxy-err", func(w http.ResponseWriter, r *http.Request) {
