@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	"gitee.com/dark.H/ProxyZ/clientcontroll"
 	"gitee.com/dark.H/ProxyZ/deploy"
@@ -31,20 +32,14 @@ func main() {
 		deploy.DepBySSH(dev)
 		os.Exit(0)
 	}
-
-	servercontroll.HTTPSGet("https://" + gs.Str(server).Split("://")[1].Str() + "/z-info").Json().Every(func(k string, v any) {
-		if k == "status" {
-			gs.S(v).Color("g").Println(server)
-			if v != "ok" {
-				gs.Str("server is not alive !").Color("r").Println()
-				os.Exit(0)
-			}
-		}
-	})
+	if r := servercontroll.TestServer(server); r > time.Minute {
+		os.Exit(0)
+		return
+	} else {
+		gs.Str("server build time: %s ").F(r).Println("test")
+	}
 	if update {
-		servercontroll.HTTPSPost("https://"+gs.Str(server).Split("://")[1].Str()+"/z11-update", nil).Json().Every(func(k string, v any) {
-			gs.S(v).Color("g").Println(server + " > " + k)
-		})
+		servercontroll.SendUpdate(server)
 		os.Exit(0)
 	}
 	cli := clientcontroll.NewClientControll(server, l)

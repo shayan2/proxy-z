@@ -15,6 +15,7 @@ var (
 		"tls": 0,
 		"kcp": 0,
 	}
+	lastUse = 0
 )
 
 func GetProxy() *baseconnection.ProxyTunnel {
@@ -24,7 +25,11 @@ func GetProxy() *baseconnection.ProxyTunnel {
 		AddProxy(tunnel)
 		return tunnel
 	} else {
-		tunnel := Tunnels.Nth(0)
+		lock.Lock()
+		lastUse += 1
+		lastUse = lastUse % Tunnels.Count()
+		lock.Unlock()
+		tunnel := Tunnels.Nth(lastUse)
 		return tunnel
 	}
 }

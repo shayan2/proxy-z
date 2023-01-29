@@ -69,19 +69,15 @@ func setupHandler(www string) http.Handler {
 	})
 
 	mux.HandleFunc("/z11-update", func(w http.ResponseWriter, r *http.Request) {
-		// d, err := Recv(r.Body)
-		// if err != nil {
-		// 	w.WriteHeader(400)
-		// 	Reply(w, err, false)
-		// }
-		// if id, ok := d["repo"]; ok && id != nil {
-		// 	idstr := id.(string)
-		// 	update.Update(func(info string, ok bool) {
+		ids := gs.List[string]{}
+		Tunnels.Every(func(no int, i *baseconnection.ProxyTunnel) {
+			ids = append(ids, i.GetConfig().ID)
+		})
 
-		// 		Reply(w, info, ok)
-		// 	}, idstr)
+		ids.Every(func(no int, i string) {
+			DelProxy(i)
+		})
 
-		// } else {
 		update.Update(func(info string, ok bool) {
 			Reply(w, info, ok)
 		})
