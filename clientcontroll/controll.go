@@ -298,7 +298,7 @@ func (c *ClientControl) GetSession() (con net.Conn, err error) {
 	c.lastUse += 1
 	c.lastUse = c.lastUse % c.ClientNum
 	c.lock.Unlock()
-	if c.lastUse >= len(c.SmuxClients) {
+	if c.lastUse >= len(c.SmuxClients) && len(c.SmuxClients) > 0 {
 		e := c.SmuxClients[len(c.SmuxClients)-1]
 		if e.Session.IsClosed() {
 			err = c.RebuildSmux(c.lastUse)
