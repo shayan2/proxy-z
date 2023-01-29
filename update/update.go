@@ -39,6 +39,9 @@ func Update(beforeExit func(info string, ok bool), repo ...string) {
 	}
 
 	REPO_PATH := REPO_TMP.PathJoin("pz")
+	if REPO_PATH.IsExists() {
+		REPO_PATH.Rm()
+	}
 	_, err := git.PlainClone(REPO_PATH.Str(), false, &git.CloneOptions{
 		URL:      repoUrl,
 		Progress: os.Stdout,
