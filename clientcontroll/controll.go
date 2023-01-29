@@ -41,7 +41,7 @@ func NewClientControll(addr string, listenport int) *ClientControl {
 	c := &ClientControl{
 		Addr:       gs.Str(addr),
 		ListenPort: listenport,
-		ClientNum:  10,
+		ClientNum:  30,
 	}
 	return c
 }
@@ -167,6 +167,7 @@ func (c *ClientControl) GetAviableProxy() (conf *baseconnection.ProtocolConfig) 
 CORE ！！！！！！！！
 */
 func (c *ClientControl) Socks5Listen() (err error) {
+	c.InitializationTunnels()
 	if c.ListenPort != 0 {
 		l, err := net.Listen("tcp", "0.0.0.0:"+gs.S(c.ListenPort).Str())
 		if err != nil {
@@ -275,7 +276,7 @@ func (c *ClientControl) RebuildSmux(no int) (err error) {
 	default:
 		singleTunnelConn, err = prokcp.ConnectKcp(proxyConfig.RemoteAddr(), proxyConfig)
 	}
-	gs.Str("--> "+proxyConfig.RemoteAddr()).Color("y", "B").Println(proxyConfig.ProxyType)
+	// gs.Str("--> "+proxyConfig.RemoteAddr()).Color("y", "B").Println(proxyConfig.ProxyType)
 	if singleTunnelConn != nil {
 		if len(c.SmuxClients) <= no {
 			c.SmuxClients = append(c.SmuxClients, prosmux.NewSmuxClient(singleTunnelConn))
@@ -296,26 +297,53 @@ func (c *ClientControl) GetSession() (con net.Conn, err error) {
 	c.lock.Lock()
 	c.lastUse += 1
 	c.lastUse = c.lastUse % c.ClientNum
-	e := c.SmuxClients[c.lastUse]
 	c.lock.Unlock()
-	if e.Session.IsClosed() {
-		err = c.RebuildSmux(c.lastUse)
+	if c.lastUse >= len(c.SmuxClients) {
+		e := c.SmuxClients[len(c.SmuxClients)-1]
+		if e.Session.IsClosed() {
+			err = c.RebuildSmux(c.lastUse)
+		} else {
+			con, err = e.NewConnnect()
+		}
+
 	} else {
-		con, err = e.NewConnnect()
+		e := c.SmuxClients[c.lastUse]
+		if e.Session.IsClosed() {
+			err = c.RebuildSmux(c.lastUse)
+		} else {
+			con, err = e.NewConnnect()
+		}
+
 	}
+
 	return
 }
 
-func (c *ClientControl) ConnectRemote() (con net.Conn, err error) {
-	for len(c.SmuxClients) < c.ClientNum {
-		err = c.RebuildSmux(len(c.SmuxClients))
-		if err != nil {
-			gs.Str("rebuild smux").Println("connect remote")
-			return nil, err
-		} else {
-			gs.Str("tunnel %d build").F(len(c.SmuxClients)).Color("g").Println("Conn")
-		}
+func (c *ClientControl) InitializationTunnels() {
+	wait := sync.WaitGroup{}
+	for i := 0; i < c.ClientNum; i++ {
+		wait.Add(1)
+		go func(no int) {
+			wait.Done()
+			for {
+				err := c.RebuildSmux(no)
+				if err != nil {
+					gs.Str("rebuild smux err:" + err.Error()).Println("Err")
+					// return nil, err
+				} else {
+					gs.Str("tunnel %d build").F(no).Color("g").Println("Conn")
+					break
+				}
+
+			}
+
+		}(i)
 	}
+	wait.Wait()
+}
+
+func (c *ClientControl) ConnectRemote() (con net.Conn, err error) {
+
 	// connted := false
 
 	con, err = c.GetSession()

@@ -55,7 +55,7 @@ type SmuxConfig struct {
 }
 
 func (kconfig *SmuxConfig) SetAsDefault() {
-	kconfig.Mode = "fast"
+	kconfig.Mode = "fast4"
 	kconfig.KeepAlive = 10
 	kconfig.MTU = 1350
 	kconfig.DataShard = 10

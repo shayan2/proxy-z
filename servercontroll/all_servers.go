@@ -3,6 +3,7 @@ package servercontroll
 import (
 	"net/http"
 
+	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
 	"gitee.com/dark.H/ProxyZ/update"
 	"gitee.com/dark.H/gs"
 )
@@ -37,6 +38,14 @@ func setupHandler(www string) http.Handler {
 		if d == nil {
 			Reply(w, "alive", true)
 		}
+	})
+	mux.HandleFunc("/proxy-info", func(w http.ResponseWriter, r *http.Request) {
+		ids := []string{}
+		Tunnels.Every(func(no int, i *baseconnection.ProxyTunnel) {
+			ids = append(ids, i.GetConfig().ID)
+		})
+		Reply(w, gs.Dict[[]string]{
+			"ids": ids}, true)
 	})
 
 	mux.HandleFunc("/z-dns", func(w http.ResponseWriter, r *http.Request) {
