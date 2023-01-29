@@ -95,7 +95,7 @@ func NewSmuxClient(conn net.Conn) (s *SmuxConfig) {
 	s.clienConf = s.GenerateConfig()
 	// s.UpdateMode()
 	mux, err := smux.Client(s.ClientConn, s.clienConf)
-	ColorD(s)
+	// ColorD(s)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -175,8 +175,6 @@ func (m *SmuxConfig) Server() (err error) {
 			gs.Str(err.Error()).Println("smux raw conn accpet err")
 			m.Listener.Close()
 			break
-		} else {
-			gs.Str("comming").Println("smux raw conn accpet")
 		}
 
 		go m.AccpetStream(conn)

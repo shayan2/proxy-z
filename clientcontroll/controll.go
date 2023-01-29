@@ -25,20 +25,23 @@ var (
 )
 
 type ClientControl struct {
-	SmuxClient *prosmux.SmuxConfig
+	SmuxClients []*prosmux.SmuxConfig
+
 	nowconf    *baseconnection.ProtocolConfig
+	ClientNum  int
 	ListenPort int
 	ErrCount   int
 	AliveCount int
-
-	lock sync.RWMutex
-	Addr gs.Str
+	lastUse    int
+	lock       sync.RWMutex
+	Addr       gs.Str
 }
 
 func NewClientControll(addr string, listenport int) *ClientControl {
 	c := &ClientControl{
 		Addr:       gs.Str(addr),
 		ListenPort: listenport,
+		ClientNum:  10,
 	}
 	return c
 }
@@ -194,58 +197,62 @@ func (c *ClientControl) Socks5Listen() (err error) {
 					gs.Str(err.Error()).Println("socks5 get host")
 					return
 				}
-				remotecon, err := c.ConnectRemote()
-				if err != nil {
-					gs.Str(err.Error()).Println("connect proxy server err")
-					return
-				}
-				defer remotecon.Close()
-				_, err = remotecon.Write(raw)
-				if err != nil {
-					gs.Str(err.Error()).Println("connecting write|" + host)
-					c.lock.Lock()
-					c.ErrCount += 1
-					c.lock.Unlock()
-					return
-				}
-				// gs.Str(host).Color("g").Println("connect|write")
-				_buf := make([]byte, len(prosocks5.Socks5Confirm))
-				remotecon.SetReadDeadline(time.Now().Add(18 * time.Second))
-				_, err = remotecon.Read(_buf)
-
-				if err != nil {
-					gs.Str(err.Error()).Println("connecting read|" + host)
-					if err.Error() != "timeout" {
-						baseconnection.ErrToFile("err in client controll.go :160", err)
-					}
-
-					c.lock.Lock()
-					c.ErrCount += 1
-					c.lock.Unlock()
-					return
-				}
-				if bytes.Equal(_buf, prosocks5.Socks5Confirm) {
-					_, err = socks5con.Write(_buf)
+				for tryTime := 0; tryTime < 3; tryTime += 1 {
+					remotecon, err := c.ConnectRemote()
 					if err != nil {
-						gs.Str(err.Error()).Println("connecting reply|" + host)
+						gs.Str(err.Error()).Println("connect proxy server err")
 						return
 					}
-				}
+					defer remotecon.Close()
+					_, err = remotecon.Write(raw)
+					if err != nil {
+						gs.Str(err.Error()).Println("connecting write|" + host)
+						c.lock.Lock()
+						c.ErrCount += 1
+						c.lock.Unlock()
+						return
+					}
+					// gs.Str(host).Color("g").Println("connect|write")
+					_buf := make([]byte, len(prosocks5.Socks5Confirm))
+					remotecon.SetReadDeadline(time.Now().Add(1 * time.Minute))
+					_, err = remotecon.Read(_buf)
 
-				c.lock.Lock()
-				c.AliveCount += 1
-				if c.ErrCount > 0 {
-					c.ErrCount -= 1
+					if err != nil {
+						gs.Str(err.Error()).Println("connecting read|" + host)
+						if err.Error() != "timeout" {
+							baseconnection.ErrToFile("err in client controll.go :160", err)
+						}
+
+						c.lock.Lock()
+						c.ErrCount += 1
+						c.lock.Unlock()
+						continue
+					}
+					if bytes.Equal(_buf, prosocks5.Socks5Confirm) {
+						_, err = socks5con.Write(_buf)
+						if err != nil {
+							gs.Str(err.Error()).Println("connecting reply|" + host)
+							return
+						}
+					}
+
+					c.lock.Lock()
+					c.AliveCount += 1
+					if c.ErrCount > 0 {
+						c.ErrCount -= 1
+					}
+					c.lock.Unlock()
+					gs.Str(host).Color("g").Println("connecting|" + gs.S(c.AliveCount).Str())
+					remotecon.SetReadDeadline(time.Now().Add(30 * time.Minute))
+					c.Pipe(socks5con, remotecon)
+					socks5con.Close()
+					remotecon.Close()
+					c.lock.Lock()
+					c.AliveCount -= 1
+					c.lock.Unlock()
+					break
+
 				}
-				c.lock.Unlock()
-				gs.Str(host).Color("g").Println("connecting|" + gs.S(c.AliveCount).Str())
-				remotecon.SetReadDeadline(time.Now().Add(30 * time.Minute))
-				c.Pipe(socks5con, remotecon)
-				socks5con.Close()
-				remotecon.Close()
-				c.lock.Lock()
-				c.AliveCount -= 1
-				c.lock.Unlock()
 
 			}(socks5con)
 
@@ -254,7 +261,7 @@ func (c *ClientControl) Socks5Listen() (err error) {
 	return
 }
 
-func (c *ClientControl) RebuildSmux() (err error) {
+func (c *ClientControl) RebuildSmux(no int) (err error) {
 	proxyConfig := c.GetAviableProxy()
 	if proxyConfig == nil {
 		return ErrRouteISBreak
@@ -262,7 +269,6 @@ func (c *ClientControl) RebuildSmux() (err error) {
 	var singleTunnelConn net.Conn
 	switch proxyConfig.ProxyType {
 	case "tls":
-
 		singleTunnelConn, err = protls.ConnectTls(proxyConfig.RemoteAddr(), proxyConfig)
 	case "kcp":
 		singleTunnelConn, err = prokcp.ConnectKcp(proxyConfig.RemoteAddr(), proxyConfig)
@@ -271,7 +277,12 @@ func (c *ClientControl) RebuildSmux() (err error) {
 	}
 	gs.Str("--> "+proxyConfig.RemoteAddr()).Color("y", "B").Println(proxyConfig.ProxyType)
 	if singleTunnelConn != nil {
-		c.SmuxClient = prosmux.NewSmuxClient(singleTunnelConn)
+		if len(c.SmuxClients) <= no {
+			c.SmuxClients = append(c.SmuxClients, prosmux.NewSmuxClient(singleTunnelConn))
+		} else {
+			c.SmuxClients[no] = prosmux.NewSmuxClient(singleTunnelConn)
+		}
+
 	} else {
 		if err == nil {
 			err = errors.New("tls/kcp only :  now method is :" + proxyConfig.ProxyType)
@@ -281,31 +292,36 @@ func (c *ClientControl) RebuildSmux() (err error) {
 	return nil
 }
 
+func (c *ClientControl) GetSession() (con net.Conn, err error) {
+	c.lock.Lock()
+	c.lastUse += 1
+	c.lastUse = c.lastUse % c.ClientNum
+	e := c.SmuxClients[c.lastUse]
+	c.lock.Unlock()
+	if e.Session.IsClosed() {
+		err = c.RebuildSmux(c.lastUse)
+	} else {
+		con, err = e.NewConnnect()
+	}
+	return
+}
+
 func (c *ClientControl) ConnectRemote() (con net.Conn, err error) {
-	if c.SmuxClient == nil {
-		err = c.RebuildSmux()
+	for len(c.SmuxClients) < c.ClientNum {
+		err = c.RebuildSmux(len(c.SmuxClients))
 		if err != nil {
 			gs.Str("rebuild smux").Println("connect remote")
 			return nil, err
+		} else {
+			gs.Str("tunnel %d build").F(len(c.SmuxClients)).Color("g").Println("Conn")
 		}
 	}
 	// connted := false
-	if c.SmuxClient.Session.IsClosed() {
-		err = c.RebuildSmux()
-		if err != nil {
-			gs.Str("rebuild smux").Println("connect remote")
-			return nil, err
-		}
-	}
 
-	con, err = c.SmuxClient.NewConnnect()
+	con, err = c.GetSession()
 	if err != nil {
 		gs.Str("rebuild smux").Println("connect remote")
-		err = c.RebuildSmux()
-		if err != nil {
-			return nil, err
-		}
-		con, err = c.SmuxClient.NewConnnect()
+		con, err = c.GetSession()
 	}
 	// gs.Str("smxu connect ").Println()
 	return

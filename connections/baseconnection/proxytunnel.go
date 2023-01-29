@@ -88,7 +88,7 @@ func (pt *ProxyTunnel) Server(after func()) (err error) {
 				listener.Close()
 				return err
 			}
-			pt.HandleConnAsync(con)
+			go pt.HandleConnAsync(con)
 		}
 
 	}
@@ -181,12 +181,12 @@ func (pt *ProxyTunnel) TcpNormal(host string, con net.Conn) (err error) {
 
 func (pt *ProxyTunnel) Pipe(p1, p2 net.Conn) {
 	var wg sync.WaitGroup
-	var wait = 5 * time.Second
+	// var wait = 39 * time.Second
 	wg.Add(1)
 	streamCopy := func(dst net.Conn, src net.Conn, fr, to net.Addr) {
 		// startAt := time.Now()
 		Copy(dst, src)
-		dst.SetReadDeadline(time.Now().Add(wait))
+		// dst.SetReadDeadline(time.Now().Add(wait))
 		p1.Close()
 		p2.Close()
 		// }()
