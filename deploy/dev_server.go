@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"log"
 	"net"
+	"os"
 	"time"
 
+	"gitee.com/dark.H/gn"
 	"gitee.com/dark.H/gs"
+	"github.com/go-git/go-git/v5"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -74,7 +77,7 @@ func DepOneHost(user, host, pwd string) {
 			// }
 			return
 		} else {
-			gs.Str(out.String()).Color("g").Println(host)
+			gs.Str(out.String()).Trim().Color("g").Println(host)
 		}
 		sess.Close()
 		var out2 = bytes.NewBuffer([]byte{})
@@ -90,7 +93,7 @@ func DepOneHost(user, host, pwd string) {
 			gs.Str(err.Error()).Color("r").Println(host)
 			return
 		} else {
-			gs.Str(out2.String()).Color("g").Println(host)
+			// gs.Str(out2.String()).Color("g").Println(host)
 		}
 
 	})
@@ -141,4 +144,64 @@ func DepBySSH(sshStr string) {
 	} else {
 		gs.Str("user:%s host:%s pwd:%s").F(user, host, pwd).Println()
 	}
+}
+
+func GetConfig(user string, pwd string) (err error) {
+	REPO_TMP := gs.TMP.PathJoin("repo")
+	defer REPO_TMP.Rm()
+	REPO_PATH := REPO_TMP.PathJoin("pz")
+	if REPO_PATH.IsExists() {
+		REPO_PATH.Rm()
+	}
+	repoUrl := "https://gitee.com/dark.H/"
+	_, err = git.PlainClone(REPO_PATH.Str(), false, &git.CloneOptions{
+		URL:      repoUrl,
+		Progress: os.Stdout,
+	})
+	return err
+}
+
+type onevps struct {
+	Host     string
+	Pwd      string
+	Location string
+	Tag      string
+}
+
+func (o onevps) Println() {
+	w := gs.Str("tag:%s ").F(o.Tag).Color("b", "B") + gs.Str("host: %s ").F(o.Host).Color("g") + gs.Str("loc: "+o.Location).Color("m", "B")
+	w.Println()
+}
+
+func (o onevps) Build() {
+	DepOneHost("root", o.Host+":22", o.Pwd)
+}
+
+func SearchFromVultr(tag, api string) (vpss gs.List[onevps]) {
+	nt := gs.Str("https://api.vultr.com/v1/server/list").AsRequest()
+	nt = nt.SetMethod(gs.Str("POST")).SetHead("API-Key", gs.Str(api))
+	r := gn.AsReq(nt).HTTPS()
+	r.Build()
+
+	if res := r.Go(); res.Str != "" {
+		data := res.Json()
+		data.Every(func(k string, v any) {
+			vals := data[k].(map[string]interface{})
+			tag := vals["tag"].(string)
+			passwd := vals["default_password"].(string)
+			host := vals["main_ip"].(string)
+			location := vals["location"].(string)
+			if gs.Str(tag + host + location).In(tag) {
+				vpss = vpss.Add(onevps{
+					Host:     host,
+					Tag:      tag,
+					Pwd:      passwd,
+					Location: location,
+				})
+			}
+		})
+
+	}
+
+	return
 }

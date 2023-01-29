@@ -3,8 +3,10 @@ module gitee.com/dark.H/ProxyZ
 go 1.19
 
 require (
+	gitee.com/dark.H/gn v0.0.6
 	gitee.com/dark.H/gs v1.0.0
 	github.com/fatih/color v1.13.0
+	github.com/go-git/go-git/v5 v5.5.2
 	github.com/golang/snappy v0.0.4
 	github.com/lucas-clemente/quic-go v0.31.1
 	github.com/pkg/errors v0.9.1
@@ -21,11 +23,10 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-git/go-billy/v5 v5.4.0 // indirect
-	github.com/go-git/go-git/v5 v5.5.2 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
@@ -48,6 +49,7 @@ require (
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.3.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/term v0.3.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
