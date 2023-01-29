@@ -67,6 +67,19 @@ func setupHandler(www string) http.Handler {
 		str := tu.GetConfig()
 		Reply(w, str, true)
 	})
+	mux.HandleFunc("/04__close-all", func(w http.ResponseWriter, r *http.Request) {
+		ids := gs.List[string]{}
+		Tunnels.Every(func(no int, i *baseconnection.ProxyTunnel) {
+			ids = append(ids, i.GetConfig().ID)
+		})
+
+		ids.Every(func(no int, i string) {
+			DelProxy(i)
+		})
+		Reply(w, gs.Dict[gs.List[string]]{
+			"ids": ids,
+		}, true)
+	})
 
 	mux.HandleFunc("/z11-update", func(w http.ResponseWriter, r *http.Request) {
 		ids := gs.List[string]{}
