@@ -61,7 +61,6 @@ func setupHandler(www string) http.Handler {
 			idstr := id.(string)
 			if DelProxy(idstr) {
 				tu := NewProxy("tls")
-				#### Hear Dev
 			}
 		}
 
