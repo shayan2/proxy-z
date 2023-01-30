@@ -118,7 +118,7 @@ func (pt *ProxyTunnel) SetControllFunc(l func(rawHost string, con net.Conn) (err
 }
 
 func (pt *ProxyTunnel) HandleConnAsync(con net.Conn) {
-	con.SetReadDeadline(time.Now().Add(time.Minute))
+	// con.SetReadDeadline(time.Now().Add(time.Minute))
 	host, _, _, err := prosocks5.GetServerRequest(con)
 	if err != nil {
 		gs.Str(err.Error()).Println("GetServerRequest | err")

@@ -123,7 +123,7 @@ func GetLocalRequestUDP(conn *net.Conn) (rawaddr []byte, host string, err error)
 	// refer to getRequest in server.go for why set buffer size to 263
 	buf := make([]byte, 263)
 	var n int
-	SetReadTimeout(conn)
+	// SetReadTimeout(conn)
 	// read till we get possible domain length field
 	if n, err = io.ReadAtLeast(*conn, buf, idDmLen+1); err != nil {
 		return
@@ -219,7 +219,7 @@ func GetLocalRequest(conn *net.Conn) (rawaddr []byte, host string, isUdp bool, e
 	// refer to getRequest in server.go for why set buffer size to 263
 	buf := make([]byte, 263)
 	var n int
-	SetReadTimeout(conn)
+	// SetReadTimeout(conn)
 	// read till we get possible domain length field
 	if n, err = io.ReadAtLeast(*conn, buf, idDmLen+1); err != nil {
 		return
@@ -298,7 +298,7 @@ func GetLocalRequest(conn *net.Conn) (rawaddr []byte, host string, isUdp bool, e
 func GetSSServerRequest(conn net.Conn) (host string, raw []byte, isUdp bool, err error) {
 
 	// utils.SetStreamReadTimeout(*conn)
-	SetReadTimeout(&conn)
+	// SetReadTimeout(&conn)
 	const (
 		typeIPv4 = 1 // type is ipv4 address
 		typeDm   = 3 // type is domain address
@@ -313,8 +313,8 @@ func GetSSServerRequest(conn net.Conn) (host string, raw []byte, isUdp bool, err
 		log.Fatal(err)
 	}
 
-	var ReadTimeout = (2 * time.Second)
-	conn.SetReadDeadline(time.Now().Add(ReadTimeout))
+	// var ReadTimeout = (2 * time.Second)
+	// conn.SetReadDeadline(time.Now().Add(ReadTimeout))
 
 	buf := make([]byte, 260)
 	// fmt.Println("GetSSServerRequest ReadFull")
@@ -339,7 +339,7 @@ func GetSSServerRequest(conn net.Conn) (host string, raw []byte, isUdp bool, err
 	// ColorL("isType", idType)
 	reqLen := -1
 
-	conn.SetReadDeadline(time.Now().Add(ReadTimeout))
+	// conn.SetReadDeadline(time.Now().Add(ReadTimeout))
 	switch idType {
 	case typeIPv4:
 		reqLen = lenIPv4
@@ -394,7 +394,7 @@ func GetSSServerRequest(conn net.Conn) (host string, raw []byte, isUdp bool, err
 func GetServerRequest(conn net.Conn) (host string, raw []byte, isUdp bool, err error) {
 
 	// utils.SetStreamReadTimeout(*conn)
-	SetReadTimeout(&conn)
+	// SetReadTimeout(&conn)
 	const (
 		idVer   = 0
 		idCmd   = 1
@@ -521,7 +521,7 @@ func Socks5HandShake(conn *net.Conn) (err error) {
 	// at most 256 methods, plus version and nmethod field in total 258 bytes
 	// the current rfc defines only 3 authentication methods (plus 2 reserved),
 	// so it won't be such long in practice
-	SetReadTimeout(conn)
+	// SetReadTimeout(conn)
 	buf := make([]byte, 258)
 	var n int
 	if n, err = io.ReadAtLeast(*conn, buf, idNmethod+1); err != nil {

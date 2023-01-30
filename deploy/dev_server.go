@@ -1,10 +1,13 @@
 package deploy
 
 import (
+	"bufio"
 	"bytes"
+	"fmt"
 	"log"
 	"net"
 	"os"
+	"sync"
 	"time"
 
 	"gitee.com/dark.H/ProxyZ/servercontroll"
@@ -215,6 +218,10 @@ func SearchFromVultr(tag, api string) (vpss gs.List[Onevps]) {
 	return
 }
 
+func (o Onevps) Update() {
+	servercontroll.SendUpdate(o.Host)
+}
+
 func (o Onevps) Test() time.Duration {
 	return servercontroll.TestServer(o.Host)
 }
@@ -222,7 +229,7 @@ func (o Onevps) Test() time.Duration {
 func SyncToGit(gitrepo, gitName, gitPwd, loginName, loginPwd string, vpss gs.List[Onevps]) {
 	text := gs.Str("")
 	vpss.Every(func(no int, i Onevps) {
-		text += gs.Str(i.Host + "\n")
+		text += gs.Str(i.Location + "|" + i.Host + "\n")
 	})
 	EncryptedText := text.Trim().Enrypt(loginPwd)
 	tmprepo := gs.TMP.PathJoin("repot-sync-tmp")
@@ -279,4 +286,194 @@ func SyncToGit(gitrepo, gitName, gitPwd, loginName, loginPwd string, vpss gs.Lis
 		log.Fatal(err)
 	}
 	gs.Str("Push ok ").Color("g").Println("git")
+}
+
+func VultrMode(server string) {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("Search in all vps by tag ['exit' to exit] >>")
+		tag, _ := reader.ReadString('\n')
+		tag = gs.Str(tag).Trim().Str()
+		// tag := gt.TypedInput("Search Tag[exit] >")
+		if tag == "exit" {
+			break
+		}
+		devs := SearchFromVultr(tag, server)
+		devs.Every(func(no int, i Onevps) {
+			i.Println()
+		})
+
+		fmt.Print("build/ test / update / sync")
+		handler, _ := reader.ReadString('\n')
+		switch gs.Str(handler).Trim() {
+		case "build":
+			waiter := sync.WaitGroup{}
+			devs.Every(func(no int, i Onevps) {
+				waiter.Add(1)
+				go func() {
+					defer waiter.Done()
+					i.Build()
+				}()
+			})
+			waiter.Wait()
+
+			fmt.Print("enter to continue")
+			reader.ReadString('\n')
+		case "test":
+			waiter := sync.WaitGroup{}
+			ts := gs.List[gs.Str]{}
+			lock := sync.RWMutex{}
+			devs.Every(func(no int, i Onevps) {
+				waiter.Add(1)
+				go func() {
+					defer waiter.Done()
+					ti := i.Test()
+					lock.Lock()
+					ts = ts.Add(gs.Str("%s-%s:%d").F(i.Location, i.Host, ti))
+					lock.Unlock()
+				}()
+			})
+			waiter.Wait()
+			ts.Sort(func(l, r gs.Str) bool {
+				return l.Split(":").Nth(1).TryLong() > r.Split(":").Nth(1).TryLong()
+			})
+			ts.Every(func(no int, i gs.Str) {
+				t := i.Split(":").Nth(0)
+				used := time.Duration(i.Split(":").Nth(1).TryLong())
+				gs.Str("%s : %s").F(t, used).Color("g", "B").Println("test")
+			})
+			fmt.Print("enter to continue")
+			reader.ReadString('\n')
+		case "update":
+			waiter := sync.WaitGroup{}
+			devs.Every(func(no int, i Onevps) {
+				waiter.Add(1)
+				go func() {
+					defer waiter.Done()
+					i.Update()
+
+				}()
+			})
+			waiter.Wait()
+			fmt.Print("enter to continue")
+			reader.ReadString('\n')
+		case "sync":
+			fmt.Print("git url:")
+			repo, _ := reader.ReadString('\n')
+			fmt.Print("git name:")
+			gitname, _ := reader.ReadString('\n')
+			fmt.Print("git pwd:")
+			gitpwd, _ := reader.ReadString('\n')
+			fmt.Print("set login name:")
+			loginname, _ := reader.ReadString('\n')
+
+			fmt.Print("set login pwd:")
+			loginpwd, _ := reader.ReadString('\n')
+			SyncToGit(gs.Str(repo).Trim().Str(), gs.Str(gitname).Trim().Str(), gs.Str(gitpwd).Trim().Str(), gs.Str(loginname).Trim().Str(), gs.Str(loginpwd).Trim().Str(), devs)
+			fmt.Print("enter to continue")
+			reader.ReadString('\n')
+		}
+
+	}
+
+}
+
+func GitMode(gitrepo string, namePwd ...string) string {
+	name := ""
+	pwd := ""
+	if namePwd != nil {
+		name = namePwd[0]
+		if len(namePwd) > 1 {
+			pwd = namePwd[1]
+		}
+	}
+	tmprepo := gs.TMP.PathJoin("repot-sync-tmp")
+	defer tmprepo.Rm()
+	repoUrl := gitrepo
+	if tmprepo.IsExists() {
+		err := tmprepo.Rm()
+		if err != nil {
+			gs.Str(err.Error()).Println("Err")
+			return ""
+		}
+	}
+	_, err := git.PlainClone(tmprepo.Str(), false, &git.CloneOptions{
+		URL:      repoUrl,
+		Progress: os.Stdout,
+	})
+	if err != nil {
+		gs.Str(err.Error()).Add(gs.Str(tmprepo).Color("r")).Println("Err")
+		return ""
+	}
+	reader := bufio.NewReader(os.Stdin)
+	if name == "" {
+		gs.Str("login name:").Color("u").Print()
+		name, _ = reader.ReadString('\n')
+		name = gs.Str(name).Trim().Str()
+	}
+	filename := tmprepo.PathJoin(name)
+	if !filename.IsExists() {
+		gs.Str("Login Failed no such config ! "+name).Color("r", "B").Println("login")
+		gs.Str(filename).Color("r", "B").Println("login")
+		return ""
+	} else {
+		gs.Str("Login config ready!"+name).Color("g", "B").Println("login")
+	}
+
+	if pwd == "" {
+		gs.Str("login pwd:").Color("u").Print()
+		pwd, _ = reader.ReadString('\n')
+		pwd = gs.Str(pwd).Trim().Str()
+	}
+	if encrpytedBuf := filename.MustAsFile(); encrpytedBuf != "" {
+		if plain := encrpytedBuf.Derypt(pwd); plain.In(".") {
+			vpss := gs.List[Onevps]{}
+			plain.EveryLine(func(lineno int, line gs.Str) {
+				line.Color("g").Println("Route")
+				if line.In("|") {
+					vpss = append(vpss, Onevps{
+						Location: line.Split("|").Nth(0).Trim().Str(),
+						Host:     line.Split("|").Nth(1).Trim().Str(),
+					})
+
+				} else {
+					vpss = append(vpss, Onevps{
+						Host: line.Trim().Str(),
+					})
+				}
+			})
+			gs.Str("login success Start testing !").Color("g", "B").Println("login")
+
+			waiter := sync.WaitGroup{}
+			ts := gs.List[gs.Str]{}
+			lock := sync.RWMutex{}
+			vpss.Every(func(no int, i Onevps) {
+				waiter.Add(1)
+				go func() {
+					defer waiter.Done()
+					ti := i.Test()
+					lock.Lock()
+					ts = ts.Add(gs.Str("%s-%s:%d").F(i.Location, i.Host, ti))
+					lock.Unlock()
+				}()
+			})
+			waiter.Wait()
+			ts.Sort(func(l, r gs.Str) bool {
+				return l.Split(":").Nth(1).TryLong() > r.Split(":").Nth(1).TryLong()
+			})
+			ts.Every(func(no int, i gs.Str) {
+				t := i.Split(":").Nth(0)
+				used := time.Duration(i.Split(":").Nth(1).TryLong())
+				gs.Str("%s : %s").F(t, used).Color("g", "B").Println(no)
+			})
+
+			gs.Str("Choose route to listen:").Color("u").Print()
+			routeNo, _ := reader.ReadString('\n')
+			routeNo = gs.Str(routeNo).Trim().Str()
+			route := ts.Nth(gs.Str(routeNo).TryInt()).Split(":").Nth(0).Split("-").Nth(1)
+			return route.Str()
+		}
+	}
+
+	return ""
 }

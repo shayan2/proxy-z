@@ -154,7 +154,7 @@ func (kconfig *SmuxConfig) GenerateConfig() *smux.Config {
 
 func (m *SmuxConfig) Server() (err error) {
 	// ColorD(m)
-	wait10minute := time.NewTicker(10 * time.Minute)
+	wait10minute := time.NewTicker(1 * time.Minute)
 	for {
 	LOOP:
 		// Accept a TCP connection

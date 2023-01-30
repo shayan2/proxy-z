@@ -35,7 +35,16 @@ func TestServer(server string) time.Duration {
 }
 
 func SendUpdate(server string) {
-	HTTPSPost("https://"+gs.Str(server).Split("://")[1].Str()+"/z11-update", nil).Json().Every(func(k string, v any) {
+	f := ""
+	if !gs.Str(server).In(":55443") {
+		server += ":55443"
+	}
+	if gs.Str(server).In("://") {
+		f = "https://" + gs.Str(server).Split("://")[1].Str()
+	} else {
+		f = "https://" + gs.Str(server).Str()
+	}
+	HTTPSPost(f+"/z11-update", nil).Json().Every(func(k string, v any) {
 		gs.S(v).Color("g").Println(server + " > " + k)
 	})
 }
