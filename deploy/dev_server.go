@@ -10,6 +10,8 @@ import (
 	"gitee.com/dark.H/gn"
 	"gitee.com/dark.H/gs"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -161,38 +163,45 @@ func GetConfig(user string, pwd string) (err error) {
 	return err
 }
 
-type onevps struct {
+type Onevps struct {
 	Host     string
 	Pwd      string
 	Location string
 	Tag      string
 }
 
-func (o onevps) Println() {
+func (o Onevps) Println() {
 	w := gs.Str("tag:%s ").F(o.Tag).Color("b", "B") + gs.Str("host: %s ").F(o.Host).Color("g") + gs.Str("loc: "+o.Location).Color("m", "B")
 	w.Println()
 }
 
-func (o onevps) Build() {
+func (o Onevps) Build() {
 	DepOneHost("root", o.Host+":22", o.Pwd)
 }
 
-func SearchFromVultr(tag, api string) (vpss gs.List[onevps]) {
+func SearchFromVultr(tag, api string) (vpss gs.List[Onevps]) {
+	a := gs.Str(api)
+	if a.StartsWith("https://") {
+		api = a.Split("https://")[1].Split(":")[0].Str()
+	}
 	nt := gs.Str("https://api.vultr.com/v1/server/list").AsRequest()
-	nt = nt.SetMethod(gs.Str("POST")).SetHead("API-Key", gs.Str(api))
+	nt = nt.SetMethod(gs.Str("GET")).SetHead("API-Key", gs.Str(api))
+	// nt.Color("g").Println(tag)
 	r := gn.AsReq(nt).HTTPS()
 	r.Build()
 
 	if res := r.Go(); res.Str != "" {
-		data := res.Json()
+		// res.Str.Println()
+
+		data := res.Body().Json()
 		data.Every(func(k string, v any) {
 			vals := data[k].(map[string]interface{})
-			tag := vals["tag"].(string)
+			vtag := vals["tag"].(string)
 			passwd := vals["default_password"].(string)
 			host := vals["main_ip"].(string)
 			location := vals["location"].(string)
-			if gs.Str(tag + host + location).In(tag) {
-				vpss = vpss.Add(onevps{
+			if gs.Str(vtag + host + location).In(tag) {
+				vpss = vpss.Add(Onevps{
 					Host:     host,
 					Tag:      tag,
 					Pwd:      passwd,
@@ -200,8 +209,58 @@ func SearchFromVultr(tag, api string) (vpss gs.List[onevps]) {
 				})
 			}
 		})
-
 	}
 
 	return
+}
+
+func SyncToGit(gitrepo, gitName, gitPwd, loginName, loginPwd string, vpss gs.List[Onevps]) {
+	text := gs.Str("")
+	vpss.Every(func(no int, i Onevps) {
+		text += gs.Str(i.Host + "\n")
+	})
+	EncryptedText := text.Trim().Enrypt(loginPwd)
+	tmprepo := gs.TMP.PathJoin("repot-sync-tmp")
+	repoUrl := gitrepo
+	repo, err := git.PlainClone(tmprepo.Str(), false, &git.CloneOptions{
+		URL:      repoUrl,
+		Progress: os.Stdout,
+	})
+	if err != nil {
+		gs.Str(err.Error()).Println("Err")
+		log.Fatal(err)
+	}
+
+	fileP := tmprepo.PathJoin(loginName)
+	EncryptedText.ToFile(fileP.Str(), gs.O_NEW_WRITE)
+
+	work, err := repo.Worktree()
+	if err != nil {
+		gs.Str(err.Error()).Println("Err")
+		log.Fatal(err)
+	}
+	work.Add(fileP.Str())
+	_, err = work.Commit("example go-git commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "John Doe",
+			Email: "john@doe.org",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		gs.Str(err.Error()).Println("Err")
+		log.Fatal(err)
+	}
+	err = repo.Push(&git.PushOptions{
+		RemoteName: "origin",
+		Auth: &githttp.BasicAuth{
+			Username: gitName,
+			Password: gitPwd,
+		},
+	})
+	if err != nil {
+		gs.Str(err.Error()).Println("Err")
+		log.Fatal(err)
+	}
+
 }
