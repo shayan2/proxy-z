@@ -68,15 +68,16 @@ func Pipe(p1, p2 net.Conn) (err error) {
 
 func OpenPortUFW(port int) {
 	if runtime.GOOS == "linux" {
-		gs.Str("open port :%d").F(port).Println()
+		gs.Str("open port :%d").F(port).Color("y").Println()
 		gs.Str("ufw allow %d").F(port).Exec()
 	}
 }
 
 func ClosePortUFW(port int) {
 	if runtime.GOOS == "linux" {
-		gs.Str("close port :%d").F(port).Println()
 		gs.Str("ufw delete allow %d").F(port).Exec()
+		gs.Str("close port :%d").F(port).Color("y", "B").Println("Close")
+
 	}
 }
 

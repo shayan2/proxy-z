@@ -1,29 +1,60 @@
 package servercontroll
 
 import (
+	"sync"
+
 	"gitee.com/dark.H/ProxyZ/connections/baseconnection"
 	"gitee.com/dark.H/ProxyZ/connections/prokcp"
 	"gitee.com/dark.H/ProxyZ/connections/protls"
 	"gitee.com/dark.H/gs"
 )
 
+var (
+	lock         = sync.RWMutex{}
+	ErrTypeCount = gs.Dict[int]{
+		"tls": 0,
+		"kcp": 0,
+	}
+	lastUse = 0
+)
+
 func GetProxy() *baseconnection.ProxyTunnel {
 	if Tunnels.Count() == 0 {
 
-		tunnel := NewProxy("kcp")
-		Tunnels = append(Tunnels, tunnel)
+		tunnel := NewProxy("tls")
+		AddProxy(tunnel)
 		return tunnel
 	} else {
-		tunnel := Tunnels.Nth(0)
+		lock.Lock()
+		lastUse += 1
+		lastUse = lastUse % Tunnels.Count()
+		lock.Unlock()
+		tunnel := Tunnels.Nth(lastUse)
 		return tunnel
 	}
+}
+
+func AddProxy(c *baseconnection.ProxyTunnel) {
+	lock.Lock()
+	Tunnels = append(Tunnels, c)
+	lock.Unlock()
 }
 
 func DelProxy(name string) (found bool) {
 
 	e := gs.List[*baseconnection.ProxyTunnel]{}
 	for _, tun := range Tunnels {
+		if tun == nil {
+			continue
+		}
 		if tun.GetConfig().ID == name {
+			baseconnection.ClosePortUFW(tun.GetConfig().ServerPort)
+			if num, ok := ErrTypeCount[tun.GetConfig().ProxyType]; ok {
+				num += 1
+				lock.Lock()
+				ErrTypeCount[tun.GetConfig().ProxyType] = num
+				lock.Unlock()
+			}
 			tun.SetWaitToClose()
 			found = true
 			continue
@@ -34,6 +65,18 @@ func DelProxy(name string) (found bool) {
 	GLOCK.Lock()
 	Tunnels = e
 	GLOCK.Unlock()
+	return
+}
+
+func NewProxyByErrCount() (c *baseconnection.ProxyTunnel) {
+	tlsnum := ErrTypeCount["tls"]
+	kcpnum := ErrTypeCount["kcp"]
+	if kcpnum < tlsnum {
+		c = NewProxy("kcp")
+	} else {
+		c = NewProxy("tls")
+	}
+	AddProxy(c)
 	return
 }
 

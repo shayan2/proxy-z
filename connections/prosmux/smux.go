@@ -55,7 +55,7 @@ type SmuxConfig struct {
 }
 
 func (kconfig *SmuxConfig) SetAsDefault() {
-	kconfig.Mode = "fast"
+	kconfig.Mode = "fast4"
 	kconfig.KeepAlive = 10
 	kconfig.MTU = 1350
 	kconfig.DataShard = 10
@@ -95,7 +95,7 @@ func NewSmuxClient(conn net.Conn) (s *SmuxConfig) {
 	s.clienConf = s.GenerateConfig()
 	// s.UpdateMode()
 	mux, err := smux.Client(s.ClientConn, s.clienConf)
-	ColorD(s)
+	// ColorD(s)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -154,18 +154,27 @@ func (kconfig *SmuxConfig) GenerateConfig() *smux.Config {
 
 func (m *SmuxConfig) Server() (err error) {
 	// ColorD(m)
+	wait10minute := time.NewTicker(10 * time.Minute)
 	for {
+	LOOP:
 		// Accept a TCP connection
-		if *m.ZeroToDel {
-			break
+		select {
+		case <-wait10minute.C:
+		default:
+			if *m.ZeroToDel {
+				m.Listener.Close()
+				break LOOP
+			} else {
+				wait10minute.Reset(10 * time.Minute)
+			}
+
 		}
 		conn, err := m.Listener.Accept()
 		if err != nil {
 			time.Sleep(10 * time.Second)
 			gs.Str(err.Error()).Println("smux raw conn accpet err")
-			continue
-		} else {
-			gs.Str("comming").Println("smux raw conn accpet")
+			m.Listener.Close()
+			break
 		}
 
 		go m.AccpetStream(conn)

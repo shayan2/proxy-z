@@ -49,7 +49,7 @@ func GetHTTP3Client(usetls bool) (client *http.Client) {
 		tr := &http.Transport{TLSClientConfig: config}
 		client := &http.Client{
 			Transport: tr,
-			Timeout:   5 * time.Second,
+			Timeout:   15 * time.Second,
 		}
 		return client
 	}
@@ -60,7 +60,7 @@ func GetHTTP3Client(usetls bool) (client *http.Client) {
 	defer roundTripper.Close()
 	hclient := &http.Client{
 		Transport: roundTripper,
-		Timeout:   5 * time.Second,
+		Timeout:   15 * time.Second,
 	}
 
 	return hclient

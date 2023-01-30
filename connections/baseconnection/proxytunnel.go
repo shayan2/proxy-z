@@ -36,17 +36,18 @@ func NewProxyTunnel(procol Protocol) *ProxyTunnel {
 
 	return p
 }
-func (pt *ProxyTunnel) Start() (err error) {
+func (pt *ProxyTunnel) Start(after func()) (err error) {
 	pt.On = true
 
-	go pt.Server()
+	go pt.Server(after)
 	return
 }
-func (pt *ProxyTunnel) Server() (err error) {
+func (pt *ProxyTunnel) Server(after func()) (err error) {
 	serverPort := pt.GetConfig().ServerPort
 	defer func() {
 		pt.On = false
 		ClosePortUFW(serverPort)
+		after()
 	}()
 
 	if pt.protocl == nil {
@@ -57,29 +58,7 @@ func (pt *ProxyTunnel) Server() (err error) {
 		return errors.New("protocol.listenre is null !!!")
 	}
 
-	if pt.protocl.GetConfig().ProxyType == "kcp" {
-		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Single Kcp")
-		for {
-			if pt.ZeroToDel {
-				break
-			}
-			con, err := listener.Accept()
-			if err != nil {
-				gs.Str(err.Error()).Color("r", "B").Println("kcp err")
-			}
-			smuxc := prosmux.NewSmuxServerNull()
-			smuxc.SetHandler(func(con net.Conn) (err error) {
-				pt.HandleConnAsync(con)
-				return
-			})
-
-			go smuxc.AccpetStream(con)
-			// if err != nil {
-			// 	return err
-			// }
-			// pt.HandleConnAsync(con)
-		}
-	} else if pt.UseSmux {
+	if pt.UseSmux {
 		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Smux Tunnel")
 		smux := prosmux.NewSmuxServer(listener, func(con net.Conn) (err error) {
 			pt.HandleConnAsync(con)
@@ -90,18 +69,29 @@ func (pt *ProxyTunnel) Server() (err error) {
 		return smux.Server()
 	} else {
 		gs.Str(pt.GetConfig().ID + "|" + pt.GetConfig().ProxyType + "| addr:" + pt.GetConfig().RemoteAddr()).Println("Start Tunnel")
+		wait10minute := time.NewTicker(10 * time.Minute)
 		for {
-			if pt.ZeroToDel {
-				break
+		LOOP:
+			select {
+			case <-wait10minute.C:
+				break LOOP
+			default:
+				if pt.ZeroToDel {
+					break
+				} else {
+					wait10minute.Reset(10 * time.Minute)
+				}
 			}
+
 			con, err := listener.Accept()
 			if err != nil {
+				listener.Close()
 				return err
 			}
-			pt.HandleConnAsync(con)
+			go pt.HandleConnAsync(con)
 		}
+
 	}
-	listener.Close()
 
 	return
 }
@@ -136,7 +126,7 @@ func (pt *ProxyTunnel) HandleConnAsync(con net.Conn) {
 		con.Close()
 		return
 	} else {
-		gs.Str(host).Println("host|ready")
+		// gs.Str(host).Println("host|ready")
 	}
 
 	pt.lock.Lock()
@@ -191,12 +181,12 @@ func (pt *ProxyTunnel) TcpNormal(host string, con net.Conn) (err error) {
 
 func (pt *ProxyTunnel) Pipe(p1, p2 net.Conn) {
 	var wg sync.WaitGroup
-	var wait = 5 * time.Second
+	// var wait = 39 * time.Second
 	wg.Add(1)
 	streamCopy := func(dst net.Conn, src net.Conn, fr, to net.Addr) {
 		// startAt := time.Now()
 		Copy(dst, src)
-		dst.SetReadDeadline(time.Now().Add(wait))
+		// dst.SetReadDeadline(time.Now().Add(wait))
 		p1.Close()
 		p2.Close()
 		// }()

@@ -1,0 +1,6 @@
+*.exe
+proxy-z
+cmds/z-client/z-client
+cmds/z-debug/z-debug
+cmds/z-server/z-server
+examples/c
