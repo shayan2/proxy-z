@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"gitee.com/dark.H/ProxyZ/servercontroll"
 	"gitee.com/dark.H/gn"
 	"gitee.com/dark.H/gs"
 	"github.com/go-git/go-git/v5"
@@ -212,6 +213,10 @@ func SearchFromVultr(tag, api string) (vpss gs.List[Onevps]) {
 	}
 
 	return
+}
+
+func (o Onevps) Test() time.Duration {
+	return servercontroll.TestServer(o.Host)
 }
 
 func SyncToGit(gitrepo, gitName, gitPwd, loginName, loginPwd string, vpss gs.List[Onevps]) {

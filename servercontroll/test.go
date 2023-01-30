@@ -9,7 +9,17 @@ import (
 func TestServer(server string) time.Duration {
 	st := time.Now()
 	ok := true
-	HTTPSGet("https://" + gs.Str(server).Split("://")[1].Str() + "/z-info").Json().Every(func(k string, v any) {
+	f := ""
+	if !gs.Str(server).In(":55443") {
+		server += ":55443"
+	}
+	if gs.Str(server).In("://") {
+		f = "https://" + gs.Str(server).Split("://")[1].Str()
+	} else {
+		f = "https://" + gs.Str(server).Str()
+	}
+
+	HTTPSGet(f + "/z-info").Json().Every(func(k string, v any) {
 		if k == "status" {
 			gs.S(v).Color("g").Println(server)
 			if v != "ok" {

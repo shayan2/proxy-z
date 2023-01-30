@@ -65,6 +65,35 @@ func main() {
 						i.Build()
 					}()
 				})
+				waiter.Wait()
+
+				fmt.Print("enter to continue")
+				reader.ReadString('\n')
+			case "test":
+				waiter := sync.WaitGroup{}
+				ts := gs.List[gs.Str]{}
+				lock := sync.RWMutex{}
+				devs.Every(func(no int, i deploy.Onevps) {
+					waiter.Add(1)
+					go func() {
+						defer waiter.Done()
+						ti := i.Test()
+						lock.Lock()
+						ts = ts.Add(gs.Str("%s-%s:%d").F(i.Location, i.Host, ti))
+						lock.Unlock()
+					}()
+				})
+				waiter.Wait()
+				ts.Sort(func(l, r gs.Str) bool {
+					return l.Split(":").Nth(1).TryLong() > r.Split(":").Nth(1).TryLong()
+				})
+				ts.Every(func(no int, i gs.Str) {
+					t := i.Split(":").Nth(0)
+					used := time.Duration(i.Split(":").Nth(1).TryLong()) / time.Second
+					gs.Str("%s : %s").F(t, used).Color("g", "B").Println("test")
+				})
+				fmt.Print("enter to continue")
+				reader.ReadString('\n')
 			case "sync":
 				fmt.Print("git url:")
 				repo, _ := reader.ReadString('\n')
