@@ -21,7 +21,7 @@ func TestServer(server string) time.Duration {
 
 	HTTPSGet(f + "/z-info").Json().Every(func(k string, v any) {
 		if k == "status" {
-			gs.S(v).Color("g").Println(server)
+			// gs.S(v).Color("g").Println(server)
 			if v != "ok" {
 				gs.Str("server is not alive !").Color("r").Println()
 				ok = false

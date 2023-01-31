@@ -94,6 +94,9 @@ func NewSmuxClient(conn net.Conn) (s *SmuxConfig) {
 	s.SetAsDefault()
 	s.clienConf = s.GenerateConfig()
 	// s.UpdateMode()
+	if s.ClientConn == nil {
+		return nil
+	}
 	mux, err := smux.Client(s.ClientConn, s.clienConf)
 	// ColorD(s)
 	if err != nil {
@@ -107,6 +110,9 @@ func NewSmuxClient(conn net.Conn) (s *SmuxConfig) {
 func (s *SmuxConfig) NewConnnect() (con net.Conn, err error) {
 
 	// Create a new stream on the multiplexer
+	if s.Session == nil {
+		return nil, errors.New("session closed")
+	}
 	if !s.Session.IsClosed() {
 		stream, err := s.Session.OpenStream()
 		if err != nil {
@@ -119,6 +125,14 @@ func (s *SmuxConfig) NewConnnect() (con net.Conn, err error) {
 	}
 
 	return
+}
+
+func (s *SmuxConfig) Close() error {
+	if s.Session != nil {
+		return s.Session.Close()
+	}
+
+	return nil
 }
 
 func (kconfig *SmuxConfig) UpdateMode() {

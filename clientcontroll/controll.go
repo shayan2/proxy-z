@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -24,6 +25,19 @@ var (
 	ErrRouteISBreak = errors.New("route is break")
 )
 
+func RunLocal(server string, l int) {
+
+	if r := servercontroll.TestServer(server); r > time.Minute {
+		os.Exit(0)
+		return
+	} else {
+		gs.Str("server build time: %s ").F(r).Println("test")
+	}
+
+	cli := NewClientControll(server, l)
+	cli.Socks5Listen()
+}
+
 type ClientControl struct {
 	SmuxClients []*prosmux.SmuxConfig
 
@@ -35,13 +49,22 @@ type ClientControl struct {
 	lastUse    int
 	lock       sync.RWMutex
 	Addr       gs.Str
+	closed     bool
 }
 
 func NewClientControll(addr string, listenport int) *ClientControl {
+	if !gs.Str(addr).In(":") {
+		addr += ":55443"
+	}
+	if !gs.Str(addr).In("://") {
+		addr = "https://" + addr
+	}
+
 	c := &ClientControl{
 		Addr:       gs.Str(addr),
 		ListenPort: listenport,
 		ClientNum:  30,
+		lastUse:    -1,
 	}
 	return c
 }
@@ -59,6 +82,23 @@ func RecvMsg(reply gs.Str) (di any, o bool) {
 		o = false
 		return
 	}
+}
+
+func (c *ClientControl) TryClose() {
+	c.closed = true
+}
+
+func (c *ClientControl) ChangeRoute(host string) {
+
+	if c.closed {
+		c.Addr = gs.Str(host)
+	} else {
+		gs.Str("server is not closed !").Color("r").Println()
+	}
+}
+
+func (c *ClientControl) ChangePort(port int) {
+	c.ListenPort = port
 }
 
 func (c *ClientControl) ReportErrorProxy() (conf *baseconnection.ProtocolConfig) {
@@ -178,6 +218,9 @@ func (c *ClientControl) Socks5Listen() (err error) {
 				c.ReportErrorProxy()
 				c.ErrCount = 0
 			}
+			if c.closed {
+				break
+			}
 			socks5con, err := l.Accept()
 			if err != nil {
 				gs.S(err.Error()).Println("accept err")
@@ -243,7 +286,7 @@ func (c *ClientControl) Socks5Listen() (err error) {
 						c.ErrCount -= 1
 					}
 					c.lock.Unlock()
-					gs.Str(host).Color("g").Println("connecting|" + gs.S(c.AliveCount).Str())
+					gs.Str("[%s] %s").F("connecting|"+gs.S(c.AliveCount), host).Color("g").Add("\r").Print()
 					remotecon.SetReadDeadline(time.Now().Add(30 * time.Minute))
 					c.Pipe(socks5con, remotecon)
 					socks5con.Close()
@@ -281,7 +324,11 @@ func (c *ClientControl) RebuildSmux(no int) (err error) {
 		if len(c.SmuxClients) <= no {
 			c.SmuxClients = append(c.SmuxClients, prosmux.NewSmuxClient(singleTunnelConn))
 		} else {
+			c.lock.Lock()
+			c.SmuxClients[no].Session.Close()
+			c.SmuxClients[no] = nil
 			c.SmuxClients[no] = prosmux.NewSmuxClient(singleTunnelConn)
+			c.lock.Unlock()
 		}
 
 	} else {
@@ -307,11 +354,21 @@ func (c *ClientControl) GetSession() (con net.Conn, err error) {
 		}
 
 	} else {
-		e := c.SmuxClients[c.lastUse]
-		if e.Session.IsClosed() {
+		if len(c.SmuxClients) == 0 {
 			err = c.RebuildSmux(c.lastUse)
-		} else {
+			if err != nil {
+				return nil, err
+			}
+			e := c.SmuxClients[c.lastUse]
 			con, err = e.NewConnnect()
+		} else {
+			e := c.SmuxClients[c.lastUse]
+			if e.Session.IsClosed() {
+				err = c.RebuildSmux(c.lastUse)
+			} else {
+				con, err = e.NewConnnect()
+			}
+
 		}
 
 	}
@@ -321,25 +378,33 @@ func (c *ClientControl) GetSession() (con net.Conn, err error) {
 
 func (c *ClientControl) InitializationTunnels() {
 	wait := sync.WaitGroup{}
+	l := sync.RWMutex{}
+	msgs := gs.Str("*").Color("r").Add("|").Repeat(c.ClientNum).Slice(0, -1).Split("|")
 	for i := 0; i < c.ClientNum; i++ {
 		wait.Add(1)
-		go func(no int) {
-			wait.Done()
+		go func(no int, w *sync.WaitGroup) {
+			defer wait.Done()
 			for {
 				err := c.RebuildSmux(no)
 				if err != nil {
 					gs.Str("rebuild smux err:" + err.Error()).Println("Err")
 					// return nil, err
 				} else {
-					gs.Str("tunnel %d build").F(no).Color("g").Println("Conn")
+					l.Lock()
+					msgs[no] = gs.Str('*').Color("g")
+					l.Unlock()
+					gs.Str("%s >> %s \r").F(c.Addr, msgs.Join("")).Print()
 					break
 				}
 
 			}
 
-		}(i)
+		}(i, &wait)
 	}
+
 	wait.Wait()
+	time.Sleep(1 * time.Second)
+	gs.Str("\n").Print()
 }
 
 func (c *ClientControl) ConnectRemote() (con net.Conn, err error) {

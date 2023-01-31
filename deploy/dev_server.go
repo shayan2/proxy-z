@@ -13,9 +13,11 @@ import (
 	"gitee.com/dark.H/ProxyZ/servercontroll"
 	"gitee.com/dark.H/gn"
 	"gitee.com/dark.H/gs"
+	"gitee.com/dark.H/gt"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+
 	"golang.org/x/crypto/ssh"
 )
 
@@ -168,22 +170,23 @@ func GetConfig(user string, pwd string) (err error) {
 }
 
 type Onevps struct {
-	Host     string
-	Pwd      string
-	Location string
-	Tag      string
+	Host             string
+	Pwd              string
+	Location         string
+	Tag              string
+	ConnectedQuality time.Duration
 }
 
-func (o Onevps) Println() {
+func (o *Onevps) Println() {
 	w := gs.Str("tag:%s ").F(o.Tag).Color("b", "B") + gs.Str("host: %s ").F(o.Host).Color("g") + gs.Str("loc: "+o.Location).Color("m", "B")
 	w.Println()
 }
 
-func (o Onevps) Build() {
+func (o *Onevps) Build() {
 	DepOneHost("root", o.Host+":22", o.Pwd)
 }
 
-func SearchFromVultr(tag, api string) (vpss gs.List[Onevps]) {
+func SearchFromVultr(tag, api string) (vpss gs.List[*Onevps]) {
 	a := gs.Str(api)
 	if a.StartsWith("https://") {
 		api = a.Split("https://")[1].Split(":")[0].Str()
@@ -205,7 +208,7 @@ func SearchFromVultr(tag, api string) (vpss gs.List[Onevps]) {
 			host := vals["main_ip"].(string)
 			location := vals["location"].(string)
 			if gs.Str(vtag + host + location).In(tag) {
-				vpss = vpss.Add(Onevps{
+				vpss = vpss.Add(&Onevps{
 					Host:     host,
 					Tag:      tag,
 					Pwd:      passwd,
@@ -218,17 +221,18 @@ func SearchFromVultr(tag, api string) (vpss gs.List[Onevps]) {
 	return
 }
 
-func (o Onevps) Update() {
+func (o *Onevps) Update() {
 	servercontroll.SendUpdate(o.Host)
 }
 
-func (o Onevps) Test() time.Duration {
-	return servercontroll.TestServer(o.Host)
+func (o *Onevps) Test() time.Duration {
+	o.ConnectedQuality = servercontroll.TestServer(o.Host)
+	return o.ConnectedQuality
 }
 
-func SyncToGit(gitrepo, gitName, gitPwd, loginName, loginPwd string, vpss gs.List[Onevps]) {
+func SyncToGit(gitrepo, gitName, gitPwd, loginName, loginPwd string, vpss gs.List[*Onevps]) {
 	text := gs.Str("")
-	vpss.Every(func(no int, i Onevps) {
+	vpss.Every(func(no int, i *Onevps) {
 		text += gs.Str(i.Location + "|" + i.Host + "\n")
 	})
 	EncryptedText := text.Trim().Enrypt(loginPwd)
@@ -299,7 +303,7 @@ func VultrMode(server string) {
 			break
 		}
 		devs := SearchFromVultr(tag, server)
-		devs.Every(func(no int, i Onevps) {
+		devs.Every(func(no int, i *Onevps) {
 			i.Println()
 		})
 
@@ -308,7 +312,7 @@ func VultrMode(server string) {
 		switch gs.Str(handler).Trim() {
 		case "build":
 			waiter := sync.WaitGroup{}
-			devs.Every(func(no int, i Onevps) {
+			devs.Every(func(no int, i *Onevps) {
 				waiter.Add(1)
 				go func() {
 					defer waiter.Done()
@@ -323,7 +327,7 @@ func VultrMode(server string) {
 			waiter := sync.WaitGroup{}
 			ts := gs.List[gs.Str]{}
 			lock := sync.RWMutex{}
-			devs.Every(func(no int, i Onevps) {
+			devs.Every(func(no int, i *Onevps) {
 				waiter.Add(1)
 				go func() {
 					defer waiter.Done()
@@ -346,7 +350,7 @@ func VultrMode(server string) {
 			reader.ReadString('\n')
 		case "update":
 			waiter := sync.WaitGroup{}
-			devs.Every(func(no int, i Onevps) {
+			devs.Every(func(no int, i *Onevps) {
 				waiter.Add(1)
 				go func() {
 					defer waiter.Done()
@@ -378,9 +382,10 @@ func VultrMode(server string) {
 
 }
 
-func GitMode(gitrepo string, namePwd ...string) string {
+func GitGetAccount(gitrepo string, namePwd ...string) (vpss gs.List[*Onevps]) {
 	name := ""
 	pwd := ""
+
 	if namePwd != nil {
 		name = namePwd[0]
 		if len(namePwd) > 1 {
@@ -394,16 +399,16 @@ func GitMode(gitrepo string, namePwd ...string) string {
 		err := tmprepo.Rm()
 		if err != nil {
 			gs.Str(err.Error()).Println("Err")
-			return ""
+			return
 		}
 	}
 	_, err := git.PlainClone(tmprepo.Str(), false, &git.CloneOptions{
-		URL:      repoUrl,
-		Progress: os.Stdout,
+		URL: repoUrl,
+		// Progress: os.Stdout,
 	})
 	if err != nil {
 		gs.Str(err.Error()).Add(gs.Str(tmprepo).Color("r")).Println("Err")
-		return ""
+		return
 	}
 	reader := bufio.NewReader(os.Stdin)
 	if name == "" {
@@ -415,7 +420,7 @@ func GitMode(gitrepo string, namePwd ...string) string {
 	if !filename.IsExists() {
 		gs.Str("Login Failed no such config ! "+name).Color("r", "B").Println("login")
 		gs.Str(filename).Color("r", "B").Println("login")
-		return ""
+		return
 	} else {
 		gs.Str("Login config ready!"+name).Color("g", "B").Println("login")
 	}
@@ -427,53 +432,79 @@ func GitMode(gitrepo string, namePwd ...string) string {
 	}
 	if encrpytedBuf := filename.MustAsFile(); encrpytedBuf != "" {
 		if plain := encrpytedBuf.Derypt(pwd); plain.In(".") {
-			vpss := gs.List[Onevps]{}
+
 			plain.EveryLine(func(lineno int, line gs.Str) {
-				line.Color("g").Println("Route")
+				// line.Color("g").Println("Route")
 				if line.In("|") {
-					vpss = append(vpss, Onevps{
+					vpss = append(vpss, &Onevps{
 						Location: line.Split("|").Nth(0).Trim().Str(),
 						Host:     line.Split("|").Nth(1).Trim().Str(),
 					})
 
 				} else {
-					vpss = append(vpss, Onevps{
+					vpss = append(vpss, &Onevps{
 						Host: line.Trim().Str(),
 					})
 				}
 			})
-			gs.Str("login success Start testing !").Color("g", "B").Println("login")
+			gs.Str("login success !").Color("g", "B").Println("login")
 
-			waiter := sync.WaitGroup{}
-			ts := gs.List[gs.Str]{}
-			lock := sync.RWMutex{}
-			vpss.Every(func(no int, i Onevps) {
-				waiter.Add(1)
-				go func() {
-					defer waiter.Done()
-					ti := i.Test()
-					lock.Lock()
-					ts = ts.Add(gs.Str("%s-%s:%d").F(i.Location, i.Host, ti))
-					lock.Unlock()
-				}()
-			})
-			waiter.Wait()
-			ts.Sort(func(l, r gs.Str) bool {
-				return l.Split(":").Nth(1).TryLong() > r.Split(":").Nth(1).TryLong()
-			})
-			ts.Every(func(no int, i gs.Str) {
-				t := i.Split(":").Nth(0)
-				used := time.Duration(i.Split(":").Nth(1).TryLong())
-				gs.Str("%s : %s").F(t, used).Color("g", "B").Println(no)
-			})
-
-			gs.Str("Choose route to listen:").Color("u").Print()
-			routeNo, _ := reader.ReadString('\n')
-			routeNo = gs.Str(routeNo).Trim().Str()
-			route := ts.Nth(gs.Str(routeNo).TryInt()).Split(":").Nth(0).Split("-").Nth(1)
-			return route.Str()
 		}
 	}
 
+	return
+
+}
+
+func TestRoutes(vpss gs.List[*Onevps]) (sorted gs.List[*Onevps]) {
+	waiter := sync.WaitGroup{}
+	vpss.Every(func(no int, i *Onevps) {
+		waiter.Add(1)
+		go func() {
+			defer waiter.Done()
+			i.Test()
+		}()
+	})
+	waiter.Wait()
+	return vpss.Sort(func(l, r *Onevps) bool {
+		return l.ConnectedQuality > r.ConnectedQuality
+	})
+}
+
+func GitMode(gitrepo string, namePwd ...string) string {
+	vpss := GitGetAccount(gitrepo, namePwd...)
+	gs.Str("Start testing !").Color("g", "B").Println("Routing")
+	vpss = TestRoutes(vpss)
+	vpss.Every(func(no int, i *Onevps) {
+		gs.Str("[%2d] Host: %s Location: %s %s\n").F(no, gs.Str(i.Host).Color("b"), gs.Str(i.Location).Color("y"), i.ConnectedQuality).Print()
+	})
+	gs.Str("Choose route to listen:").Color("u").Print()
+	reader := bufio.NewReader(os.Stdin)
+	if namePwd == nil {
+		routeNo, _ := reader.ReadString('\n')
+		routeNo = gs.Str(routeNo).Trim().Str()
+
+		route := vpss.Nth(gs.Str(routeNo).TryInt()).Host
+		gs.Str("").ANSICursor(0, 0).ANSIEraseToEND().Print()
+		return route
+	} else {
+
+		route := vpss.Nth(-1).Host
+		gs.Str("").ANSICursor(0, 0).ANSIEraseToEND().Print()
+		return route
+	}
+
 	return ""
+}
+
+func QuietStdout(do func(e string)) {
+	one := gt.Select[string](gs.List[string]{
+		"https://github.com/",
+		"https://gitee.com/",
+		"https://gitcoffe.com/",
+		"https://gitlab.com/",
+		"https://git.me/",
+	})
+
+	do(one)
 }

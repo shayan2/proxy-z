@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body{
+            background-color: black;
+        }
+        div.inp{
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 1ch;
+            
+        }
+        .inp > input{
+            min-height: 30px;
+            border-radius: 8px;
+            border-width: 0;
+        }
+
+        #login-btn {
+            width: 1in;
+            height: 1in;
+            border-radius: 0.5in;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 700;
+            font-size: medium;
+        }
+
+        #d-name{
+            margin-top: 30%;
+        }
+        #login-btn:hover{
+            
+            background-color: white;
+            border: 2px;
+            transition: 2.4s;
+        }
+
+        #d-sub{
+            margin-top: 40%;
+        }
+    </style>
+</head>
+<body>
+    <form action="/z-login" method="post">
+        <div id="d-name" class="inp">
+            <input type="text" name="name" placeholder="account name" id="i-name">
+        </div>
+        <div id="d-pwd" class="inp">
+            <input type="password" name="pwd" id="i-pwd" placeholder="account password">
+        </div>
+        <div id="d-sub" class="inp">
+            <input id="login-btn" type="submit" value="Login">
+        </div>
+    </form>
+    <script>
+        document.querySelector("#d-name > input").focus()
+    </script>
+</body>
+</html>
